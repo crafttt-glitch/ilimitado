@@ -1,0 +1,2729 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Med Room</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .alt-row { transition: all 0.2s ease-in-out; }
+        .alt-row:hover:not(.locked) { background-color: #f8fafc; border-color: #cbd5e1; }
+        .alt-row.selected:not(.locked) { background-color: #eef2ff; border-color: #6366f1; }
+        
+        .favorite-btn { transition: transform 0.2s, color 0.2s; }
+        .favorite-btn:hover { transform: scale(1.15); }
+        .favorite-btn.active { color: #f59e0b; fill: #f59e0b; }
+        
+        .fade-text { animation: pulseOpacity 2.5s infinite; }
+        @keyframes pulseOpacity { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+        mark.search-highlight { background-color: #fef08a; color: #0f172a; padding: 0.1em 0; border-radius: 2px; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+
+        body.hide-dificuldade .badge-dificuldade { display: none !important; }
+        body.hide-formato .badge-formato { display: none !important; }
+        body.hide-assunto .badge-assunto { display: none !important; }
+        
+        .q-minimizada .q-body-wrapper { max-height: 110px; overflow: hidden; position: relative; }
+        .q-minimizada .q-min-overlay { display: flex !important; }
+        .q-minimizada .expand-arrow { display: flex !important; }
+        .q-minimizada .q-alternativas, .q-minimizada .q-actions-bottom, .q-minimizada [id^="ai-box-"] { display: none !important; }
+        
+        .q-collapse-btn { display: flex; }
+        .q-minimizada .q-collapse-btn { display: none !important; }
+
+        .drag-item.dragging { opacity: 0.5; border-style: dashed; border-color: #6366f1; }
+        .drag-item.drag-over { background-color: #eef2ff; border-color: #6366f1; }
+
+        #logoMed { transition: max-width 0.45s cubic-bezier(.4,0,.2,1), opacity 0.35s ease, transform 0.45s ease; overflow: visible !important; }
+        #logoRoom { transition: color 0.4s ease, transform 0.45s ease; }
+        #logoEasterBtn { transition: transform 0.5s ease, background-color 0.3s ease, border-color 0.3s ease; }
+
+        @media (max-width: 767px) {
+            body { overflow-x: hidden; }
+            header > div { height: 56px !important; padding-left: 12px !important; padding-right: 12px !important; }
+            main { padding: 12px !important; gap: 16px !important; }
+            aside { gap: 12px !important; }
+            aside > button { padding-top: 12px !important; padding-bottom: 12px !important; border-radius: 14px !important; font-size: 12px !important; }
+            #listaCadernos { max-height: 42vh; }
+            #filterBar { padding: 14px !important; border-radius: 14px !important; }
+            #filterBar > div:first-child { align-items: stretch !important; gap: 12px !important; }
+            #filterBar .pt-5 { padding-top: 0 !important; }
+            #listCadernosDropdown {
+                position: fixed !important;
+                left: 12px !important;
+                right: 12px !important;
+                top: 72px !important;
+                width: auto !important;
+                max-height: calc(100vh - 96px) !important;
+            }
+            #painelUnificado { padding-top: 12px !important; margin-top: 12px !important; }
+            #painelUnificado > div { padding: 12px !important; }
+            #dashboardContent > div:first-child { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
+            #statsHeader { font-size: 10px !important; gap: 12px; }
+            #questionsContainer { gap: 14px !important; padding-bottom: 80px !important; }
+            .q-card { padding: 16px !important; border-radius: 16px !important; }
+            .q-card > div:first-child { flex-direction: column !important; gap: 12px !important; margin-bottom: 18px !important; }
+            .q-card > div:first-child > div:first-child { padding-right: 0 !important; }
+            .q-card > div:first-child > div:last-child { align-self: flex-end; }
+            .alt-row { gap: 12px !important; padding: 12px !important; border-radius: 12px !important; }
+            .q-actions-bottom > div:first-child { align-items: stretch !important; }
+            .q-actions-bottom > div:first-child > div:last-child { justify-content: stretch !important; }
+            .q-actions-bottom button { flex: 1 1 auto; min-height: 40px; }
+            [id^="custom-prompt-box-"] { flex-direction: column !important; }
+            #apiModalContent, #gerarModalContent, #moveModalContent, #manualModalContent, #displayModalContent, #filterModalContent, #exportModalContent, #importModalContent {
+                width: calc(100vw - 24px) !important;
+                max-height: calc(100vh - 24px) !important;
+                padding: 16px !important;
+                border-radius: 16px !important;
+            }
+            #apiModalContent .grid, #importModalContent .grid { grid-template-columns: 1fr !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+    <div id="apiModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar" id="apiModalContent">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                <h3 class="font-bold text-lg text-slate-800">Configurações e Nuvem</h3>
+                <button onclick="UI.toggleModal('apiModal')" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button>
+            </div>
+            
+            <div class="flex flex-col gap-5">
+                
+                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-indigo-800 font-extrabold text-[11px] uppercase tracking-wider flex items-center gap-1.5">☁️ Nuvem / Firebase</span>
+                        <span id="fbStatus" class="bg-slate-200 text-slate-500 text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Desconectado</span>
+                    </div>
+                    <p class="text-[10px] text-indigo-700 leading-relaxed font-medium">Cole a variável <b>firebaseConfig</b> abaixo para manter o seu estudo 100% sincronizado (Tempo Real) entre todos os seus dispositivos, sem custos.</p>
+                    <textarea id="fbConfigInput" rows="3" placeholder="const firebaseConfig = { apiKey: '...', ... };" class="w-full text-[10px] font-mono p-3 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white resize-none"></textarea>
+                    <div class="flex gap-2">
+                        <button onclick="Cloud.conectarPeloInput()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg transition text-[11px] shadow-sm">Aplicar Chaves Cloud</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-600 font-bold text-xs uppercase tracking-wider">Claude (Anthropic)</span>
+                        </div>
+                        <div>
+                            <input type="password" id="claudeKey" placeholder="API Key (sk-ant-...)" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Modelo Claude</label>
+                            <select id="claudeModel" class="w-full text-[11px] px-2 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 bg-white cursor-pointer font-medium text-slate-600">
+                                <option value="claude-sonnet-4-6">Claude 4.6 Sonnet (Pago/Ideal)</option>
+                                <option value="claude-opus-4-7">Claude 4.7 Opus (Pago/Parrudo)</option>
+                                <option value="claude-haiku-4-5-20251001">Claude 4.5 Haiku (Pago/Rápido)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-600 font-bold text-xs uppercase tracking-wider">Gemini (Google)</span>
+                        </div>
+                        <div>
+                            <input type="password" id="geminiKey" placeholder="API Key (AIzaSy...)" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Modelo Gemini</label>
+                            <select id="geminiModel" class="w-full text-[11px] px-2 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 bg-white cursor-pointer font-medium text-slate-600">
+                                <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Melhor FREE geral)</option>
+                                <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Melhor FREE estável)</option>
+                                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Melhor PREMIUM)</option>
+                                <option value="gemini-2.5-pro">Gemini 2.5 Pro (Melhor estável premium)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Motor: Gerar Questões</label>
+                        <select id="prefMotorGeracao" class="w-full bg-white border border-slate-200 px-2 py-2 rounded-lg text-slate-700 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer">
+                            <option value="gemini">Gemini</option>
+                            <option value="claude">Claude</option>
+                            <option value="manual">Modo Manual</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Motor: Respostas</label>
+                        <select id="prefMotorResposta" class="w-full bg-white border border-slate-200 px-2 py-2 rounded-lg text-slate-700 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer">
+                            <option value="gemini" selected>Gemini</option>
+                            <option value="claude">Claude</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="AppLogic.salvarConfiguracoes()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl transition shadow-sm text-sm">Guardar Preferências Locais</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="gerarModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex justify-center items-center opacity-0 transition-opacity duration-300"> <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar" id="gerarModalContent">
+        <!-- Banner de modo alternativo -->
+        <div id="bannerModoAlt" class="hidden rounded-t-2xl bg-gradient-to-r from-amber-400 to-orange-400 px-5 py-3 flex flex-col gap-0.5">
+            <div class="flex items-center gap-2">
+                <span class="text-base">🌐</span>
+                <span class="text-white font-extrabold text-xs uppercase tracking-wider">Modo Domínio Livre</span>
+                <button onclick="UI.alternarModoAlternativo()" class="ml-auto text-white/80 hover:text-white text-[10px] font-bold underline">Voltar ao Med</button>
+            </div>
+            <p class="text-amber-100 text-[10px] leading-snug pl-6">Critérios médicos desligados. A IA se adapta ao universo do assunto que você digitar — qualquer área do conhecimento.</p>
+        </div>
+        <div class="p-6"> <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4"> <h3 id="gerarModalTitle" class="font-bold text-lg text-slate-800 flex items-center gap-2">✨ Gerar Novo Caderno</h3> <button onclick="UI.toggleModal('gerarModal')" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button> </div> <div class="flex flex-col gap-4"> <div class="grid grid-cols-1 gap-2"> <div id="motorIA_UI" data-value="gemini" class="grid grid-cols-3 gap-2">
+  <button type="button" data-motor="gemini" onclick="UI.selecionarMotor('gemini')" class="motor-btn motor-btn-selected flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-indigo-400 bg-indigo-50 text-indigo-700 transition cursor-pointer shadow-sm">
+    <span class="text-xl leading-none">✨</span>
+    <span class="font-extrabold text-[11px] uppercase tracking-wide">Gemini</span>
+    <span class="text-[9px] font-medium text-indigo-500 leading-tight text-center">Google · Rápido · Free</span>
+  </button>
+  <button type="button" data-motor="claude" onclick="UI.selecionarMotor('claude')" class="motor-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 transition cursor-pointer shadow-sm">
+    <span class="text-xl leading-none">🧠</span>
+    <span class="font-extrabold text-[11px] uppercase tracking-wide">Claude</span>
+    <span class="text-[9px] font-medium text-slate-400 leading-tight text-center">Anthropic · Preciso · API</span>
+  </button>
+  <button type="button" data-motor="manual" onclick="UI.selecionarMotor('manual')" class="motor-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 transition cursor-pointer shadow-sm">
+    <span class="text-xl leading-none">📋</span>
+    <span class="font-extrabold text-[11px] uppercase tracking-wide">Manual</span>
+    <span class="text-[9px] font-medium text-slate-400 leading-tight text-center">Copiar · Colar · Prompt</span>
+  </button>
+</div>
+        <!-- Campos exclusivos do modo med -->
+        <div id="camposModoMed"> <select id="periodoAcademico" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 bg-slate-50 text-slate-600 font-medium cursor-pointer transition"> <option value="5º período">5º Período</option> <option value="6º período">6º Período</option> <option value="7º período">7º Período</option> <option value="8º período" selected>8º Período</option> <option value="9º período">9º Período</option> <option value="10º período">10º Período</option> <option value="11º período">11º Período</option> <option value="12º período">12º Período</option> </select> </div>
+        </div> <div class="space-y-3">
+        <div id="campoMateriaWrapper"><input type="text" id="materia" placeholder="Matéria (Opcional. Ex: Pediatria)" class="w-full border border-slate-200 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition"></div>
+        <div class="relative"> <textarea id="assuntos" rows="2" placeholder="Assuntos a serem cobrados (Obrigatório)" class="w-full border border-slate-200 border-l-4 border-l-indigo-500 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white shadow-sm transition"></textarea> </div> <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-100"> <span class="text-[11px] font-semibold text-slate-600 pl-1">Número de Questões:</span> <input type="number" id="qtdQuestoes" value="10" min="1" max="40" class="w-16 border border-slate-200 rounded p-1.5 text-xs text-center font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm"> </div> </div> <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-3 mt-1"> <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Parâmetros Estruturais</span> <select id="filtroAlternativas" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 bg-white font-medium text-slate-600 cursor-pointer shadow-sm"> <option value="variado">Alternativas: Padrão</option> <option value="4">Padrão 4</option> <option value="5">Padrão 5</option> </select> <select id="filtroFormato" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 bg-white font-medium text-slate-600 cursor-pointer shadow-sm"> <option value="equilibrado">Formato: Padrão</option> <option value="casos">Apenas Casos</option> <option value="diretas">Apenas Diretas</option> <option value="proposicoes">Apenas Proposições</option> </select> <select id="filtroDificuldade" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 bg-white font-medium text-slate-600 cursor-pointer shadow-sm"> <option value="padrao">Dificuldade: Padrão</option> <option value="hardcore">Apenas Médias e Difíceis</option> <option value="expert">100% Especialista</option> </select> </div> <textarea id="instrucoesCustom" rows="2" placeholder="Instruções Livres..." class="w-full border border-amber-200 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50 text-slate-700 mt-1"></textarea> <button onclick="AI.gerarSimulado()" id="btnGerar" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-md transition cursor-pointer text-sm mt-3 flex justify-center items-center gap-2"> <span id="btnGerarText">Gerar Caderno</span> </button> </div> </div>
+        </div>
+    </div>
+    <div id="moveModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex justify-center items-center opacity-0 transition-opacity duration-300"> <div class="bg-white w-full max-w-sm p-6 rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 flex flex-col gap-4" id="moveModalContent"> <div class="flex justify-between items-center border-b border-slate-100 pb-3"> <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">📁 Mover Caderno</h3> <button onclick="UI.toggleModal('moveModal')" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button> </div> <input type="hidden" id="moveCadernoId" value=""> <select id="selectMoveMochila" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-slate-50 cursor-pointer font-medium text-slate-700"></select> <button onclick="AppLogic.confirmarMoverCaderno()" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg text-sm transition shadow-sm">Confirmar</button> </div> </div>
+    <div id="manualModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[130] flex justify-center items-center opacity-0 transition-opacity duration-300"> <div class="bg-white w-full max-w-3xl p-6 rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 flex flex-col gap-4 max-h-[90vh]" id="manualModalContent"> <div class="flex justify-between items-center border-b border-slate-100 pb-3"> <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">🛠️ Modo Manual</h3> <button onclick="UI.toggleModal('manualModal')" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button> </div> <div class="overflow-y-auto custom-scrollbar flex flex-col gap-5 pr-2"> <div class="flex flex-col gap-2"> <textarea id="promptManualText" readonly class="w-full h-40 p-3 text-[11px] font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 resize-none"></textarea> <button id="btnCopiarPrompt" onclick="UI.copiarPromptManual()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-4 rounded-lg text-xs transition border border-indigo-200">📋 Copiar Prompt</button> </div> <div class="flex flex-col gap-2"> <textarea id="jsonManualInput" placeholder="Cole a resposta JSON da IA aqui..." class="w-full h-40 p-3 text-[11px] font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea> <button onclick="AI.processarJSONManual()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-xs transition shadow-sm">📥 Importar JSON</button> </div> </div> </div> </div>
+    <div id="displayModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex justify-center items-center opacity-0 transition-opacity duration-300"> <div class="bg-white w-full max-w-sm p-6 rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 flex flex-col gap-4" id="displayModalContent"> <div class="flex justify-between items-center border-b border-slate-100 pb-3"> <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">👁️ Exibição Global</h3> <button onclick="UI.toggleModal('displayModal')" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button> </div> <div class="flex flex-col gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200"> <div class="flex flex-col gap-2 mb-1"> <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Ações de Enunciado</span> <div class="flex gap-2 w-full"> <button onclick="UI.acionarMinimizarTudo(true); UI.toggleModal('displayModal')" class="flex-1 bg-white border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 font-bold py-2.5 rounded-lg text-[11px] transition shadow-sm">Esconder</button> <button onclick="UI.acionarMinimizarTudo(false); UI.toggleModal('displayModal')" class="flex-1 bg-white border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 font-bold py-2.5 rounded-lg text-[11px] transition shadow-sm">Expandir</button> </div> </div> <div class="flex flex-col gap-2 mb-1 mt-1 border-b border-slate-200 pb-4"> <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Modo Revisão (Respostas)</span> <div class="flex gap-2 w-full"> <button onclick="UI.acionarModoRevisao(true)" class="flex-1 bg-white border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 font-bold py-2.5 rounded-lg text-[11px] transition shadow-sm">Ocultar Salvas</button> <button onclick="UI.acionarModoRevisao(false)" class="flex-1 bg-white border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 font-bold py-2.5 rounded-lg text-[11px] transition shadow-sm">Revelar Tudo</button> </div> </div> <label class="flex items-center justify-between cursor-pointer group mt-1"> <span class="text-[12px] font-semibold text-slate-600 group-hover:text-indigo-600 transition">Revelar Dificuldade</span> <input type="checkbox" id="prefDif" onchange="AppLogic.aplicarPreferencias()" class="accent-indigo-600 w-4 h-4 cursor-pointer"> </label> <label class="flex items-center justify-between cursor-pointer group"> <span class="text-[12px] font-semibold text-slate-600 group-hover:text-indigo-600 transition">Revelar Formato</span> <input type="checkbox" id="prefForm" onchange="AppLogic.aplicarPreferencias()" class="accent-indigo-600 w-4 h-4 cursor-pointer"> </label> <label class="flex items-center justify-between cursor-pointer group"> <span class="text-[12px] font-semibold text-slate-600 group-hover:text-indigo-600 transition">Revelar Assunto</span> <input type="checkbox" id="prefAssunto" onchange="AppLogic.aplicarPreferencias()" class="accent-indigo-600 w-4 h-4 cursor-pointer"> </label> </div> <button onclick="UI.toggleModal('displayModal')" class="mt-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold py-2.5 rounded-lg text-sm transition">Concluir</button> </div> </div>
+    <div id="filterModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex justify-center items-center opacity-0 transition-opacity duration-300"> <div class="bg-white w-full max-w-sm p-6 rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 flex flex-col gap-4" id="filterModalContent"> <div class="flex justify-between items-center border-b border-slate-100 pb-3"> <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">⚡ Filtrar Visíveis</h3> <button onclick="UI.toggleModal('filterModal')" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button> </div> <div class="flex flex-col gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200"> <div class="flex flex-col gap-2"> <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-wider mb-1">Dificuldade</span> <div class="flex gap-4"> <label class="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700 cursor-pointer"><input type="checkbox" value="Fácil" class="chk-dif accent-indigo-600 w-4 h-4" checked onchange="UI.renderizarQuestoesNaTela()"> Fácil</label> <label class="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700 cursor-pointer"><input type="checkbox" value="Média" class="chk-dif accent-indigo-600 w-4 h-4" checked onchange="UI.renderizarQuestoesNaTela()"> Média</label> <label class="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700 cursor-pointer"><input type="checkbox" value="Difícil" class="chk-dif accent-indigo-600 w-4 h-4" checked onchange="UI.renderizarQuestoesNaTela()"> Difícil</label> </div> </div> <hr class="border-slate-200"> <div class="flex flex-col gap-2"> <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-wider mb-1">Formato</span> <label class="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700 cursor-pointer"><input type="checkbox" value="Caso Clínico" class="chk-form accent-indigo-600 w-4 h-4" checked onchange="UI.renderizarQuestoesNaTela()"> Casos Clínicos</label> <label class="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700 cursor-pointer"><input type="checkbox" value="Factual" class="chk-form accent-indigo-600 w-4 h-4" checked onchange="UI.renderizarQuestoesNaTela()"> Diretas / Factuais</label> <label class="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700 cursor-pointer"><input type="checkbox" value="Proposição" class="chk-form accent-indigo-600 w-4 h-4" checked onchange="UI.renderizarQuestoesNaTela()"> Proposições</label> </div> </div> <button onclick="UI.toggleModal('filterModal')" class="mt-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold py-2.5 rounded-lg text-sm transition">Aplicar Filtros</button> </div> </div>
+    <div id="exportModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex justify-center items-center opacity-0 transition-opacity duration-300"> <div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 flex flex-col gap-4 max-h-[90vh]" id="exportModalContent"> <div class="flex justify-between items-center border-b border-slate-100 pb-3"> <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">📤 Exportar Dados</h3> <button onclick="UI.toggleModal('exportModal')" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button> </div> <div class="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-2 max-h-[40vh]" id="exportOptionsContainer"> </div> <div class="mt-2 border-t border-slate-100 pt-3"> <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nome do Arquivo</label> <input type="text" id="exportFilename" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition"> </div> <button onclick="Storage.executarExportacao()" class="w-full mt-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-lg text-sm transition shadow-sm">Baixar Backup (.json)</button> </div> </div>
+    <div id="importModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex justify-center items-center opacity-0 transition-opacity duration-300"> <div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 flex flex-col gap-4" id="importModalContent"> <div class="flex justify-between items-center border-b border-slate-100 pb-3"> <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">📥 Importar Dados</h3> <button onclick="UI.toggleModal('importModal')" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button> </div> <div class="grid grid-cols-2 gap-4"> <div class="bg-white border-2 border-slate-100 hover:border-indigo-400 p-5 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition shadow-sm" onclick="document.getElementById('importFile').click()"> <span class="text-3xl">📁</span> <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center">Arquivo JSON</span> </div> <div class="bg-white border-2 border-slate-100 hover:border-indigo-400 p-5 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition shadow-sm" onclick="UI.toggleImportText()"> <span class="text-3xl">📝</span> <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center">Colar Texto</span> </div> </div> <div id="importTextSection" class="hidden flex-col gap-3 mt-4 border-t border-slate-100 pt-4"> <textarea id="importTextInput" rows="6" class="w-full border border-slate-200 rounded-lg p-3 text-[11px] font-mono focus:ring-2 focus:ring-indigo-500 bg-slate-50 resize-none" placeholder='[{"id": "cad_123", "questoes": [...]}]'></textarea> <button onclick="Storage.importarBancoTexto()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg text-sm transition shadow-sm">Processar</button> </div> </div> </div>
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-[1400px] mx-auto px-4 lg:px-8 h-16 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <button id="logoEasterBtn" onclick="UI.alternarModoAlternativo()" class="bg-indigo-50 w-9 h-9 rounded-xl flex items-center justify-center shadow-sm border border-indigo-100 text-2xl select-none focus:outline-none transition hover:scale-110 active:scale-95 cursor-pointer" title="" style="transform-origin:center">🧠</button>
+                <div style="line-height:1">
+                    <h1 class="text-lg font-extrabold text-slate-900 tracking-tight leading-none flex items-baseline gap-0" id="logoTitle">
+                        <span id="logoMed" class="inline-block" style="max-width:3em;opacity:1;overflow:visible;white-space:nowrap;padding-right:1px">MED&nbsp;</span><span id="logoRoom" class="inline-block" style="opacity:1;padding-left:1px">Room</span>
+                    </h1>
+                </div>
+            </div>
+            <button onclick="UI.toggleModal('apiModal')" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Configurações e Nuvem">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-[1400px] mx-auto p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        <aside class="lg:col-span-1 flex flex-col gap-6">
+            
+            <button onclick="UI.toggleModal('gerarModal')" class="w-full bg-white hover:bg-indigo-50 text-indigo-600 border-2 border-indigo-100 hover:border-indigo-300 font-bold py-4 rounded-2xl shadow-sm hover:shadow-md transition flex items-center justify-center gap-2 text-sm uppercase tracking-wider shrink-0">
+                ✨ Gerar Novo Caderno
+            </button>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-fit max-h-[75vh] shrink-0">
+                <div class="bg-slate-50 border-b border-slate-100 px-5 py-3 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition" onclick="UI.toggleSection('bancoContent', 'bancoChevron')">
+                    <h2 class="font-bold text-xs text-slate-800 uppercase tracking-wider">Minhas Coisas</h2>
+                    <span id="bancoChevron" class="text-slate-400 transform transition-transform duration-300">▼</span>
+                </div>
+                <div id="bancoContent" class="flex flex-col flex-1 overflow-hidden block">
+                    <div class="flex justify-end gap-2 p-2 border-b border-slate-100 bg-white shrink-0">
+                        <button onclick="Storage.abrirModalExportacao()" class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded hover:bg-indigo-50 hover:text-indigo-600 transition cursor-pointer">📤 Exportar Backup</button>
+                        <button onclick="UI.toggleModal('importModal')" class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded hover:bg-indigo-50 hover:text-indigo-600 transition cursor-pointer">📥 Importar</button>
+                        <input type="file" id="importFile" class="hidden" accept=".json" onchange="Storage.importarBanco(event)">
+                    </div>
+                    
+                    <div id="listaCadernos" class="p-3 flex flex-col gap-2 overflow-y-auto custom-scrollbar flex-1">
+                    </div>
+
+                    <div class="border-t border-slate-100 bg-slate-50 p-1 shrink-0">
+                        <button onclick="UI.toggleSection('bancoContent', 'bancoChevron')" class="w-full py-2 flex items-center justify-center gap-1 text-[9px] font-bold text-slate-400 hover:text-indigo-600 transition uppercase tracking-wider">
+                            ▲ Recolher Lista
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="lg:col-span-3 flex flex-col gap-5">
+            
+            <div id="filterBar" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col animate-fadeIn">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4 relative">
+                    
+                    <div class="w-full md:w-1/3 relative" id="dropdownCadernosContainer">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Mesa de Estudos Ativa</label>
+                        <button onclick="UI.toggleCadernosDropdown()" id="btnCadernosDropdown" class="w-full border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-700 bg-slate-50 flex justify-between items-center hover:bg-white transition cursor-pointer shadow-sm">
+                            <span id="txtBtnCadernos" class="truncate">📚 Mesa (Todos os Cadernos)</span>
+                            <span class="text-[10px] ml-2">▼</span>
+                        </button>
+                        <div id="listCadernosDropdown" class="hidden absolute top-full left-0 mt-1 w-full md:w-[750px] bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-[75vh] overflow-y-auto custom-scrollbar flex flex-col">
+                        </div>
+                    </div>
+
+                    <div class="relative w-full md:w-1/3">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Localizar Palavra</label>
+                        <input type="text" id="searchQuestions" oninput="Filters.pesquisar()" placeholder="Digite para filtrar..." class="w-full border border-slate-200 rounded-lg px-4 py-2 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition shadow-sm">
+                    </div>
+
+                    <div class="flex gap-2 w-full md:w-auto justify-end pt-5 items-center flex-wrap">
+                        <div class="flex gap-1">
+                            <button onclick="Filters.setTabFilter('todas')" id="tab-todas" class="text-xs font-bold px-4 py-2 rounded-lg border border-indigo-600 bg-indigo-50 text-indigo-700 transition cursor-pointer shadow-sm">Todas</button>
+                            <button onclick="Filters.setTabFilter('corretas')" id="tab-corretas" class="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer">Certas</button>
+                            <button onclick="Filters.setTabFilter('erradas')" id="tab-erradas" class="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer">Erradas</button>
+                            <button onclick="Filters.setTabFilter('favoritas')" id="tab-favoritas" class="text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-amber-500 hover:bg-slate-50 transition cursor-pointer">★</button>
+                        </div>
+                        
+                        <button onclick="UI.togglePainelFiltros()" class="text-xs font-bold px-4 py-2 rounded-lg border border-slate-200 text-slate-600 bg-white hover:bg-indigo-50 hover:text-indigo-600 transition cursor-pointer flex items-center gap-1 shadow-sm">
+                            ⚙️ Ordenação
+                        </button>
+                    </div>
+                </div>
+
+                <div id="painelUnificado" class="hidden border-t border-slate-200 pt-5 mt-4 transition-all">
+                    <div class="grid grid-cols-1 gap-6 max-w-xl mx-auto w-full bg-slate-50 border border-slate-100 p-5 rounded-xl shadow-inner">
+                        <div class="flex flex-col gap-3">
+                            <h4 class="text-[11px] font-bold text-indigo-500 uppercase tracking-wider text-center mb-1">Configurar Sequência da Mesa</h4>
+                            <div id="containerOrdenacaoCadernos" class="flex flex-col gap-3">
+                                <div class="bg-white p-1.5 rounded-lg border border-slate-200 flex gap-1 shadow-sm">
+                                    <button onclick="Filters.setGrp('caderno')" id="btnGrpCaderno" class="flex-1 text-[10px] font-bold py-2 rounded bg-indigo-50 text-indigo-600 border border-indigo-200 transition cursor-pointer">Por Cadernos</button>
+                                    <button onclick="Filters.setGrp('global')" id="btnGrpGlobal" class="flex-1 text-[10px] font-bold py-2 rounded text-slate-500 hover:bg-slate-100 border border-transparent transition cursor-pointer">Misturar (Global)</button>
+                                </div>
+                                <div id="boxOrdemCadernos" class="flex flex-col gap-1.5 mt-2">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase">Sequência de Exibição dos Cadernos</label>
+                                    <select id="selOrdemCadernos" onchange="Filters.handleSortChange()" class="w-full border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm">
+                                        <option value="custom">✨ Personalizada (Arraste os itens abaixo)</option>
+                                        <option value="novo">Mais Recentes Primeiro</option>
+                                        <option value="antigo">Mais Antigos Primeiro</option>
+                                    </select>
+                                    <div id="mochilaManualOrder" class="hidden flex-col gap-1 mt-2 max-h-40 overflow-y-auto custom-scrollbar pr-1 bg-white border border-slate-100 p-2 rounded-lg"></div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-1.5 mt-3 pt-4 border-t border-slate-200">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Ordenação por Dificuldade</label>
+                                <select id="selOrdemQuestoes" onchange="Filters.handleSortChange()" class="w-full border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm">
+                                    <option value="padrao">Manter Ordem Original</option>
+                                    <option value="facil_dificil">Resolver Fáceis > Difíceis</option>
+                                    <option value="dificil_facil">Resolver Difíceis > Fáceis</option>
+                                </select>
+                            </div>
+                            <button onclick="AI.gerarSimuladoDaMochila()" class="mt-4 w-full bg-white hover:bg-indigo-50 text-indigo-700 border-2 border-indigo-100 hover:border-indigo-300 font-bold py-3 rounded-lg transition cursor-pointer text-xs shadow-sm flex justify-center items-center gap-2">
+                                📝 Transformar Mesa em Simulado Limpo
+                            </button>
+                        </div>
+                        <div class="col-span-full border-t border-slate-200 pt-3 mt-1">
+                            <button onclick="UI.togglePainelFiltros()" class="w-full py-1.5 flex items-center justify-center gap-1 text-[9px] font-bold text-slate-400 hover:text-indigo-600 transition uppercase tracking-wider">
+                                ▲ Esconder Ajustes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dashboardDesempenhoWrapper" class="hidden flex-col mb-2 animate-fadeIn">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="flex justify-between items-center px-4 py-3 bg-slate-50 cursor-pointer hover:bg-slate-100 transition" onclick="Dashboard.toggleDashboard()">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">📊</span>
+                            <h3 class="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Desempenho da Mesa</h3>
+                            <span id="dashChevron" class="text-slate-400 transform transition-transform duration-300 text-[10px] ml-1 rotate-[-90deg]">▼</span>
+                        </div>
+                        <span id="dash-status-badge" class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-slate-200 text-slate-600">Iniciando</span>
+                    </div>
+                    
+                    <div id="dashboardContent" class="hidden flex-col gap-2 px-4 py-3 border-t border-slate-100">
+                        <div class="flex items-center justify-between gap-4 mt-1">
+                            <div class="flex items-center gap-4">
+                                <div class="flex flex-col">
+                                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Aproveitamento</span>
+                                    <span id="dash-aproveitamento" class="text-lg font-black text-slate-300 leading-none">-</span>
+                                </div>
+                                <div class="w-px h-6 bg-slate-200"></div>
+                                <div class="flex flex-col">
+                                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Progresso</span>
+                                    <span id="dash-progresso" class="text-sm font-bold text-slate-700 leading-none">0/0</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                                    <span class="text-[9px] font-bold text-emerald-600 uppercase">Acertos</span>
+                                    <span id="dash-acertos" class="text-xs font-black text-emerald-700">0</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded border border-rose-100">
+                                    <span class="text-[9px] font-bold text-rose-600 uppercase">Erros</span>
+                                    <span id="dash-erros" class="text-xs font-black text-rose-700">0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden flex">
+                            <div id="bar-acertos" class="bg-emerald-500 h-1 transition-all duration-500" style="width: 0%"></div>
+                            <div id="bar-erros" class="bg-rose-500 h-1 transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading" class="hidden bg-white p-16 rounded-2xl shadow-sm border border-slate-200 text-center flex flex-col items-center justify-center gap-6">
+                <div class="relative flex items-center justify-center">
+                    <div class="animate-spin rounded-full h-16 w-16 border-4 border-slate-200 border-t-indigo-600"></div>
+                    <span class="absolute text-xl animate-pulse" id="loadingIcon">🧠</span>
+                </div>
+                <div>
+                    <h3 class="font-bold text-xl text-slate-900" id="loadingTitle">Processando IA...</h3>
+                    <p class="text-sm text-indigo-600 font-bold mt-2 fade-text bg-indigo-50 px-4 py-1.5 rounded-full inline-block" id="pipelineStatus">Conectando à API do modelo...</p>
+                </div>
+                <button onclick="AI.cancelarProcessamento()" class="mt-2 text-xs font-bold text-rose-500 bg-rose-50 border border-rose-200 px-6 py-2.5 rounded-lg hover:bg-rose-100 transition shadow-sm">
+                    ⏹ Cancelar Processo
+                </button>
+            </div>
+
+            <div id="welcomeState" class="bg-white p-16 rounded-2xl shadow-sm border border-slate-200 text-center flex flex-col items-center">
+                <div id="welcomeIcon" class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center text-4xl shadow-inner mb-6 text-slate-400 border border-slate-100">📖</div>
+                <h3 id="welcomeTitle" class="font-bold text-2xl text-slate-800 tracking-tight">Med Room</h3>
+                <p id="welcomeDesc" class="text-slate-500 text-sm mt-3 max-w-md leading-relaxed">Clique em <b>✨ Gerar Novo Caderno</b> à esquerda ou importe dados para iniciar a sua revisão.</p>
+            </div>
+
+            <div id="statsHeader" class="hidden text-[11px] font-bold text-slate-400 px-1 flex justify-between uppercase tracking-wider">
+                <span id="txtMostrandoQtd">Mostrando 0 questões</span>
+            </div>
+
+            <div id="questionsContainer" class="flex flex-col gap-6 pb-20"></div>
+        </section>
+    </main>
+
+    <script>
+        // --- 1. CONFIGURAÇÕES E CONSTANTES ---
+        const Config = {
+            DB_NAME: 'MedIlimitadoDB',
+            STORE_NAME: 'appData',
+            API_RETRIES: 3,
+            API_RETRY_DELAY: 1500
+        };
+
+        // --- 2. UTILITÁRIOS GENÉRICOS ---
+        const Utils = {
+            debounce(func, wait) {
+                let timeout;
+                return (...args) => {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func(...args), wait);
+                };
+            },
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            },
+
+            highlightText(text, term) {
+                if(!term) return text;
+                const regex = new RegExp(`(?![^<]+>)(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                return text.replace(regex, '<mark class="search-highlight">$1</mark>');
+            }
+        };
+
+        // --- 3. ESTADO GLOBAL DA APLICAÇÃO ---
+        const AppState = {
+            bancoDeCadernos: [],
+            mochilasDePastas: [],
+            questoesEmExibicao: [],
+            selectedCadernos: [],
+            currentTabFilter: 'todas',
+            pipelineInterval: null,
+            dragStartIndex: null,
+            modoAgrupamento: 'caderno',
+            currentAbortController: null,
+            modoAlternativo: false
+        };
+
+        // --- 4. PARSER E TRATAMENTO DE DADOS ---
+        const Parser = {
+            limparRespostaJSON(texto) {
+                let limpo = texto.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const inicio = limpo.indexOf('[');
+                const fim = limpo.lastIndexOf(']');
+                if (inicio !== -1 && fim !== -1) return limpo.substring(inicio, fim + 1);
+                return limpo;
+            },
+            
+            tentarCorrigirJSON(jsonStr) {
+                let fixed = jsonStr.replace(/,\s*([\]}])/g, '$1');
+                if(fixed.startsWith('[') && !fixed.endsWith(']')) {
+                    if(fixed.endsWith('}')) fixed += ']';
+                }
+                return fixed;
+            },
+            
+            validarEstrutura(arrayBruto) {
+                if (!Array.isArray(arrayBruto)) throw new Error("A estrutura retornada não é uma lista (array) válida.");
+                if (arrayBruto.length === 0) throw new Error("A IA não retornou nenhuma questão dentro do array.");
+                
+                const hasValidItems = arrayBruto.some(q => (q.enunciado || q.enunciated) && (q.resposta_correta || q.gabarito));
+                if (!hasValidItems) throw new Error("As questões geradas não possuem a formatação exigida.");
+                return true;
+            },
+
+            normalizarQuestao(q, index, cadernoId) {
+                return {
+                    id_unica: `q_${Date.now()}_${index}`,
+                    caderno_id: cadernoId,
+                    caderno_origem_id: cadernoId,
+                    numero_original: index + 1,
+                    dificuldade: q.dificuldade || 'Média',
+                    formato: q.formato || 'Caso Clínico',
+                    enunciado: q.enunciado || q.enunciated || '',
+                    proposicoes: Array.isArray(q.proposicoes) ? q.proposicoes : [],
+                    alternativas: q.alternativas || {},
+                    resposta_correta: q.resposta_correta ? q.resposta_correta.toString().toUpperCase().trim() : 'A',
+                    respondido: false, escolha: null, correto: false, favorita: false,
+                    explicacao_cega: null, comentario_minimizado: true, historico: [],
+                    oculta_revisao: false
+                };
+            }
+        };
+
+        // --- 5. FIREBASE / CLOUD SYNC ---
+        const Cloud = {
+            db: null,
+            isConfigured: false,
+            unsubscribeMochilas: null,
+            unsubscribeCadernos: null,
+            unsubscribeSettings: null,
+
+            init() {
+                const configStr = localStorage.getItem('firebase_config');
+                if (!configStr) return;
+                try {
+                    const config = JSON.parse(configStr);
+                    if (!firebase.apps.length) firebase.initializeApp(config);
+                    this.db = firebase.firestore();
+                    this.isConfigured = true;
+                    
+                    document.getElementById('fbStatus').innerText = '✅ Sincronizado';
+                    document.getElementById('fbStatus').className = 'bg-emerald-100 text-emerald-700 text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider';
+                    document.getElementById('fbConfigInput').value = "// Nuvem Ativa.\n// Tudo que você fizer aqui será refletido em outras telas em tempo real.";
+                    
+                    this.escutarMudancas();
+                    setTimeout(() => this.pushCompleto(), 1200);
+                    setTimeout(() => this.pushSettings(), 1500); 
+                } catch(e) {
+                    console.error("Firebase Init Error", e);
+                    UI.showError("Erro no Firebase", "Falha ao inicializar a Nuvem. Verifique as chaves.");
+                }
+            },
+
+            conectarPeloInput() {
+                const text = document.getElementById('fbConfigInput').value;
+                const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+                let config = {};
+                
+                keys.forEach(key => {
+                    const regex = new RegExp(`['"]?${key}['"]?\\s*:\\s*['"\`]([^'"{]+)['"\`]`);
+                    const m = text.match(regex);
+                    if(m) config[key] = m[1];
+                });
+
+                if(Object.keys(config).length < 5) {
+                    return UI.showError("Configuração Inválida", "Não foi possível encontrar as chaves do Firebase. Copie o bloco inteiro const firebaseConfig = {...} e cole.");
+                }
+
+                localStorage.setItem('firebase_config', JSON.stringify(config));
+                this.init();
+                alert("Nuvem conectada com sucesso!");
+            },
+
+            escutarMudancas() {
+                if(!this.isConfigured) return;
+                
+                if(this.unsubscribeMochilas) this.unsubscribeMochilas();
+                this.unsubscribeMochilas = this.db.collection('config').doc('mochilas').onSnapshot(doc => {
+                    if (doc.metadata.hasPendingWrites) return; 
+                    if (doc.exists) {
+                        AppState.mochilasDePastas = doc.data().lista || [];
+                        Storage.salvarBanco({ skipCloud: true }); 
+                    }
+                });
+
+
+                if(this.unsubscribeSettings) this.unsubscribeSettings();
+                this.unsubscribeSettings = this.db.collection('config').doc('settings').onSnapshot(doc => {
+                    if (!doc.exists || doc.metadata.hasPendingWrites) return;
+
+                    const s = doc.data() || {};
+                    ['claude_key','gemini_key','claude_model','gemini_model','motor_geracao','motor_resposta'].forEach(key => {
+                        if(s[key]) localStorage.setItem(key, s[key]);
+                    });
+
+                    if(s.claude_key) document.getElementById('claudeKey').value = s.claude_key;
+                    if(s.gemini_key) document.getElementById('geminiKey').value = s.gemini_key;
+                    if(s.claude_model) document.getElementById('claudeModel').value = s.claude_model;
+                    if(s.gemini_model) document.getElementById('geminiModel').value = s.gemini_model;
+                    if(s.motor_geracao) {
+                        document.getElementById('prefMotorGeracao').value = s.motor_geracao;
+                        UI.selecionarMotor(s.motor_geracao || 'gemini');
+                    }
+                    if(s.motor_resposta) document.getElementById('prefMotorResposta').value = s.motor_resposta;
+                });
+
+                if(this.unsubscribeCadernos) this.unsubscribeCadernos();
+                this.unsubscribeCadernos = this.db.collection('cadernos').onSnapshot(snapshot => {
+                    if (snapshot.metadata.hasPendingWrites) return; 
+                    
+                    let changed = false;
+                    snapshot.docChanges().forEach(change => {
+                        const data = change.doc.data();
+                        if (change.type === "added" || change.type === "modified") {
+                            const idx = AppState.bancoDeCadernos.findIndex(c => c.id === change.doc.id);
+                            if (idx >= 0) AppState.bancoDeCadernos[idx] = data;
+                            else AppState.bancoDeCadernos.push(data);
+                            changed = true;
+                        }
+                        if (change.type === "removed") {
+                            AppState.bancoDeCadernos = AppState.bancoDeCadernos.filter(c => c.id !== change.doc.id);
+                            AppLogic.removeSelected(change.doc.id);
+                            changed = true;
+                        }
+                    });
+
+                    if (changed) {
+                        Storage.salvarBanco({ skipCloud: true });
+                        UI.atualizarVisaoQuestoes(); 
+                    }
+                });
+            },
+
+            async pushCaderno(caderno) {
+                if(!this.isConfigured) return;
+                try { await this.db.collection('cadernos').doc(caderno.id).set(caderno); } 
+                catch(e) { console.error("Cloud Error", e); }
+            },
+
+            async pushMochilas(mochilas) {
+                if(!this.isConfigured) return;
+                try { await this.db.collection('config').doc('mochilas').set({ lista: mochilas }); } 
+                catch(e) { console.error("Cloud Error", e); }
+            },
+
+
+            async pushSettings() {
+                if(!this.isConfigured) return;
+                try {
+                    await this.db.collection('config').doc('settings').set({
+                        claude_key: localStorage.getItem('claude_key') || '',
+                        gemini_key: localStorage.getItem('gemini_key') || '',
+                        claude_model: localStorage.getItem('claude_model') || 'claude-sonnet-4-6',
+                        gemini_model: localStorage.getItem('gemini_model') || 'gemini-2.5-flash',
+                        motor_geracao: localStorage.getItem('motor_geracao') || 'gemini',
+                        motor_resposta: localStorage.getItem('motor_resposta') || 'gemini'
+                    }, { merge: true });
+                } catch(e) { console.error("Cloud Settings Error", e); }
+            },
+
+            async deletarCaderno(id) {
+                if(!this.isConfigured) return;
+                try { await this.db.collection('cadernos').doc(id).delete(); } 
+                catch(e) { console.error("Cloud Error", e); }
+            },
+
+            async pushCompleto() {
+                if(!this.isConfigured) return;
+                try {
+                    await this.pushMochilas(AppState.mochilasDePastas);
+                    
+                    const chunks = [];
+                    for (let i = 0; i < AppState.bancoDeCadernos.length; i += 400) {
+                        chunks.push(AppState.bancoDeCadernos.slice(i, i + 400));
+                    }
+                    
+                    for (const chunk of chunks) {
+                        const batch = this.db.batch();
+                        chunk.forEach(c => {
+                            const ref = this.db.collection('cadernos').doc(c.id);
+                            batch.set(ref, c);
+                        });
+                        await batch.commit();
+                    }
+                } catch(e) { console.error("Cloud Push All Error", e); }
+            }
+        };
+
+        // --- 6. ARMAZENAMENTO LOCAL (INDEXEDDB) ---
+        const Storage = {
+            initDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(Config.DB_NAME, 1);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(Config.STORE_NAME)) {
+                            db.createObjectStore(Config.STORE_NAME);
+                        }
+                    };
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            async saveToDB(key, data) {
+                const db = await Storage.initDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(Config.STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(Config.STORE_NAME);
+                    store.put(data, key);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            },
+
+            async loadFromDB(key) {
+                const db = await Storage.initDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(Config.STORE_NAME, 'readonly');
+                    const store = tx.objectStore(Config.STORE_NAME);
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            salvarBanco(opts = {}) {
+                const payload = {
+                    mochilas: AppState.mochilasDePastas,
+                    cadernos: AppState.bancoDeCadernos
+                };
+                Storage.saveToDB('banco_med_pro', payload)
+                    .then(() => {
+                        UI.atualizarUIBanco();
+                        
+                        if (Cloud.isConfigured && !opts.skipCloud) {
+                            if (opts.cadernoId) {
+                                const c = AppState.bancoDeCadernos.find(x => x.id === opts.cadernoId);
+                                if(c) Cloud.pushCaderno(c);
+                            }
+                            if (opts.mochilas) {
+                                Cloud.pushMochilas(AppState.mochilasDePastas);
+                            }
+                            Cloud.pushCompleto();
+
+                            if (Cloud.isConfigured) {
+                                Cloud.pushSettings();
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        UI.showError("Erro de Banco de Dados", "Falha ao salvar no IndexedDB do navegador.");
+                    });
+            },
+
+            abrirModalExportacao() {
+                const container = document.getElementById('exportOptionsContainer');
+                
+                const cadAvulsos = AppState.bancoDeCadernos.filter(c => !c.mochila_id && !c.isSimulado);
+                const simulados = AppState.bancoDeCadernos.filter(c => c.isSimulado);
+                const totalCads = AppState.bancoDeCadernos.filter(c => !c.isSimulado).length;
+                
+                let html = `
+                    <label class="flex items-center justify-between p-3 border-2 border-indigo-100 bg-indigo-50 rounded-lg cursor-pointer">
+                        <div class="flex items-center gap-2">
+                            <input type="radio" name="exportType" value="all" checked onchange="UI.toggleExportSelectionUI(false); UI.updateExportFilename();" class="accent-indigo-600 w-4 h-4">
+                            <span class="font-bold text-indigo-900 text-xs uppercase">Tudo (Backup Completo)</span>
+                        </div>
+                        <span class="text-[10px] text-indigo-600 font-bold">${AppState.mochilasDePastas.length} 🎒 | ${totalCads} 📓 | ${simulados.length} 📝</span>
+                    </label>
+                    
+                    <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 mt-2">
+                        <input type="radio" name="exportType" value="partial" onchange="UI.toggleExportSelectionUI(true); UI.updateExportFilename();" class="accent-indigo-600 w-4 h-4">
+                        <span class="font-bold text-slate-700 text-xs uppercase">Selecionar Itens Específicos...</span>
+                    </label>
+                    
+                    <div id="exportSelectionList" class="hidden flex-col gap-2 mt-2 pl-2 border-l-2 border-slate-100">
+                `;
+                
+                if(AppState.mochilasDePastas.length > 0) {
+                    html += `<div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Mochilas e Cadernos</div>`;
+                    AppState.mochilasDePastas.forEach(m => {
+                        const cads = AppState.bancoDeCadernos.filter(c => c.mochila_id === m.id);
+                        html += `
+                        <div class="flex flex-col mb-1">
+                            <label class="flex items-center gap-2 text-[12px] font-bold text-slate-700 cursor-pointer">
+                                <input type="checkbox" class="chk-export-mochila accent-indigo-600" data-id="${m.id}" onchange="UI.toggleMochilaExport(this, '${m.id}')"> 🎒 ${m.nome}
+                            </label>
+                            <div class="pl-6 flex flex-col gap-1.5 mt-1.5 border-l-2 border-slate-200 ml-2">
+                        `;
+                        cads.forEach(c => {
+                            const titulo = c.materia ? `${c.assuntos} - ${c.materia}` : c.assuntos;
+                            html += `<label class="flex items-center gap-2 text-[11px] font-semibold text-slate-600 cursor-pointer">
+                                <input type="checkbox" class="chk-export-caderno accent-indigo-600 cad-moch-${m.id}" value="${c.id}" onchange="UI.checkMochilaExportState('${m.id}'); UI.updateExportFilename();"> 📓 ${titulo}
+                            </label>`;
+                        });
+                        html += `</div></div>`;
+                    });
+                }
+                
+                if(cadAvulsos.length > 0) {
+                    html += `<div class="text-[10px] font-bold text-slate-400 uppercase mt-2">Avulsos</div>`;
+                    cadAvulsos.forEach(c => {
+                        const titulo = c.materia ? `${c.assuntos} - ${c.materia}` : c.assuntos;
+                        html += `<label class="flex items-center gap-2 text-[11px] font-semibold text-slate-600 cursor-pointer"><input type="checkbox" class="chk-export-caderno accent-indigo-600" value="${c.id}" onchange="UI.updateExportFilename()"> 📓 ${titulo}</label>`;
+                    });
+                }
+                
+                if(simulados.length > 0) {
+                    html += `<div class="text-[10px] font-bold text-slate-400 uppercase mt-2">Simulados</div>`;
+                    simulados.forEach(c => {
+                        html += `<label class="flex items-center gap-2 text-[11px] font-semibold text-slate-600 cursor-pointer"><input type="checkbox" class="chk-export-caderno accent-indigo-600" data-simulado="true" value="${c.id}" onchange="UI.updateExportFilename()"> 📝 ${c.assuntos}</label>`;
+                    });
+                }
+                
+                html += `</div>`;
+                container.innerHTML = html;
+                
+                setTimeout(() => UI.updateExportFilename(), 50);
+
+                UI.toggleModal('exportModal');
+            },
+
+            executarExportacao() {
+                const type = document.querySelector('input[name="exportType"]:checked').value;
+                let exportData = { mochilas: [], cadernos: [] };
+                
+                let customName = document.getElementById('exportFilename').value.trim() || `Backup_${new Date().getTime()}`;
+                if (!customName.toLowerCase().endsWith('.json')) customName += '.json';
+
+                if(type === 'all') {
+                    exportData.mochilas = AppState.mochilasDePastas;
+                    exportData.cadernos = AppState.bancoDeCadernos;
+                } else {
+                    const checkedCads = Array.from(document.querySelectorAll('.chk-export-caderno:checked')).map(c => c.value);
+                    if(checkedCads.length === 0) return UI.showError("Atenção", "Selecione pelo menos um caderno ou simulado para exportar.");
+                    
+                    exportData.cadernos = AppState.bancoDeCadernos.filter(c => checkedCads.includes(c.id));
+                    
+                    const neededMochilas = [...new Set(exportData.cadernos.map(c => c.mochila_id).filter(id => id))];
+                    exportData.mochilas = AppState.mochilasDePastas.filter(m => neededMochilas.includes(m.id));
+                }
+                
+                const a = document.createElement('a');
+                a.setAttribute("href", "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2)));
+                a.setAttribute("download", customName);
+                document.body.appendChild(a); a.click(); a.remove();
+                
+                UI.toggleModal('exportModal');
+            },
+
+            importarBancoTexto() {
+                const val = document.getElementById('importTextInput').value.trim();
+                if(!val) return UI.showError("Erro", "Por favor, cole o conteúdo JSON antes de importar.");
+                
+                try {
+                    let jsonLimpo = Parser.tentarCorrigirJSON(val);
+                    const dados = JSON.parse(jsonLimpo);
+                    
+                    if(Array.isArray(dados)) {
+                        dados.forEach(c => { c.questoes.forEach(q => { if(!Array.isArray(q.historico)) q.historico = q.respondido ? [q.correto] : []; q.comentario_minimizado = true; q.oculta_revisao = false; }); });
+                        AppState.bancoDeCadernos = dados;
+                        AppState.mochilasDePastas = [];
+                    } else if (dados.cadernos) {
+                        dados.cadernos.forEach(c => { c.questoes.forEach(q => { if(!Array.isArray(q.historico)) q.historico = q.respondido ? [q.correto] : []; q.comentario_minimizado = true; q.oculta_revisao = false; }); });
+                        AppState.bancoDeCadernos = dados.cadernos;
+                        AppState.mochilasDePastas = dados.mochilas || [];
+                    } else {
+                        throw new Error("Formato não reconhecido pela plataforma.");
+                    }
+                    
+                    Storage.salvarBanco({full: true});
+                    if(AppState.bancoDeCadernos.length > 0) AppState.selectedCadernos = [AppState.bancoDeCadernos[AppState.bancoDeCadernos.length-1].id];
+                    
+                    UI.atualizarVisaoQuestoes();
+                    UI.toggleModal('importModal');
+                    document.getElementById('importTextInput').value = '';
+                    document.getElementById('importTextSection').classList.add('hidden');
+                    alert("Dados importados via texto com sucesso!");
+                } catch (err) {
+                    UI.showError("Falha na Importação", `O texto inserido não é um JSON de backup válido.\n\nDetalhe do Erro: ${err.message}`);
+                }
+            },
+
+            importarBanco(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        let jsonLimpo = Parser.tentarCorrigirJSON(e.target.result);
+                        const dados = JSON.parse(jsonLimpo);
+                        if(Array.isArray(dados)) {
+                            dados.forEach(c => { c.questoes.forEach(q => { if(!Array.isArray(q.historico)) q.historico = q.respondido ? [q.correto] : []; q.comentario_minimizado = true; q.oculta_revisao = false; }); });
+                            AppState.bancoDeCadernos = dados;
+                            AppState.mochilasDePastas = [];
+                        } else if (dados.cadernos) {
+                            dados.cadernos.forEach(c => { c.questoes.forEach(q => { if(!Array.isArray(q.historico)) q.historico = q.respondido ? [q.correto] : []; q.comentario_minimizado = true; q.oculta_revisao = false; }); });
+                            AppState.bancoDeCadernos = dados.cadernos;
+                            AppState.mochilasDePastas = dados.mochilas || [];
+                        } else {
+                            throw new Error("Formato inválido ou corrompido.");
+                        }
+                        
+                        Storage.salvarBanco({full: true});
+                        if(AppState.bancoDeCadernos.length > 0) {
+                            AppState.selectedCadernos = [AppState.bancoDeCadernos[AppState.bancoDeCadernos.length-1].id];
+                        }
+                        UI.atualizarVisaoQuestoes();
+                        UI.toggleModal('importModal');
+                        alert("Banco restaurado com sucesso!");
+                    } catch (err) { 
+                        UI.showError("Falha ao ler Arquivo", `O arquivo não é um backup estruturado compatível.\n\nDetalhe: ${err.message}`); 
+                    }
+                };
+                reader.readAsText(file);
+                event.target.value = ''; 
+            }
+        };
+
+        // --- 7. DASHBOARD E FILTROS ---
+        const Dashboard = {
+            toggleDashboard() {
+                const content = document.getElementById('dashboardContent');
+                const chev = document.getElementById('dashChevron');
+                if(content.classList.contains('hidden')) {
+                    content.classList.remove('hidden');
+                    content.classList.add('flex');
+                    chev.style.transform = 'rotate(0deg)';
+                } else {
+                    content.classList.add('hidden');
+                    content.classList.remove('flex');
+                    chev.style.transform = 'rotate(-90deg)';
+                }
+            },
+
+            atualizarDashboard() {
+                const dashboard = document.getElementById('dashboardDesempenhoWrapper');
+                if(AppState.questoesEmExibicao.length === 0) {
+                    dashboard.classList.add('hidden');
+                    dashboard.classList.remove('flex');
+                    return;
+                }
+
+                const total = AppState.questoesEmExibicao.length;
+                const respondidas = AppState.questoesEmExibicao.filter(q => q.respondido);
+                const totalResp = respondidas.length;
+
+                if(totalResp === 0) {
+                    dashboard.classList.add('hidden');
+                    dashboard.classList.remove('flex');
+                    return;
+                }
+
+                dashboard.classList.remove('hidden');
+                dashboard.classList.add('flex');
+
+                const acertos = respondidas.filter(q => q.correto).length;
+                const erros = totalResp - acertos;
+                const pct = Math.round((acertos / totalResp) * 100);
+
+                const aproEl = document.getElementById('dash-aproveitamento');
+                aproEl.innerText = `${pct}%`;
+                if(pct >= 75) aproEl.className = 'text-xl font-black text-emerald-500 leading-none';
+                else if(pct >= 50) aproEl.className = 'text-xl font-black text-amber-500 leading-none';
+                else aproEl.className = 'text-xl font-black text-rose-500 leading-none';
+
+                document.getElementById('dash-progresso').innerText = `${totalResp}/${total}`;
+                document.getElementById('dash-acertos').innerText = acertos;
+                document.getElementById('dash-erros').innerText = erros;
+
+                const pctAcertosGlob = (acertos / total) * 100;
+                const pctErrosGlob = (erros / total) * 100;
+                document.getElementById('bar-acertos').style.width = `${pctAcertosGlob}%`;
+                document.getElementById('bar-erros').style.width = `${pctErrosGlob}%`;
+
+                const badge = document.getElementById('dash-status-badge');
+                if (totalResp === total) {
+                    badge.innerText = '✅ CONCLUÍDO';
+                    badge.className = 'px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700';
+                } else {
+                    badge.innerText = '⚡ EM PROGRESSO';
+                    badge.className = 'px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700';
+                }
+            }
+        };
+
+        const Filters = {
+            pesquisar: Utils.debounce(() => { 
+                UI.renderizarQuestoesNaTela(); 
+            }, 300),
+
+            setTabFilter(tabName) {
+                const tabs = ['todas', 'corretas', 'erradas', 'favoritas'];
+                tabs.forEach(t => {
+                    const el = document.getElementById('tab-' + t);
+                    if(t === 'favoritas') el.className = "text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-amber-500 hover:bg-slate-50 transition cursor-pointer";
+                    else el.className = "text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer";
+                });
+                const activeEl = document.getElementById('tab-' + tabName);
+                if(tabName === 'favoritas') activeEl.className = "text-xs font-bold px-4 py-2 rounded-lg border border-amber-500 bg-amber-50 text-amber-600 transition cursor-pointer shadow-sm";
+                else activeEl.className = "text-xs font-bold px-4 py-2 rounded-lg border border-indigo-600 bg-indigo-50 text-indigo-700 transition cursor-pointer shadow-sm";
+                
+                AppState.currentTabFilter = tabName;
+                UI.renderizarQuestoesNaTela();
+            },
+
+            setGrp(modo) {
+                AppState.modoAgrupamento = modo;
+                const btnC = document.getElementById('btnGrpCaderno');
+                const btnG = document.getElementById('btnGrpGlobal');
+                const boxC = document.getElementById('boxOrdemCadernos');
+
+                if(modo === 'caderno') {
+                    btnC.className = "flex-1 text-[10px] font-bold py-2 rounded bg-indigo-50 text-indigo-600 border border-indigo-200 transition cursor-pointer";
+                    btnG.className = "flex-1 text-[10px] font-bold py-2 rounded text-slate-500 hover:bg-slate-100 border border-transparent transition cursor-pointer";
+                    boxC.style.display = "flex";
+                } else {
+                    btnG.className = "flex-1 text-[10px] font-bold py-2 rounded bg-indigo-50 text-indigo-600 border border-indigo-200 transition cursor-pointer";
+                    btnC.className = "flex-1 text-[10px] font-bold py-2 rounded text-slate-500 hover:bg-slate-100 border border-transparent transition cursor-pointer";
+                    boxC.style.display = "none";
+                }
+                Filters.handleSortChange();
+            },
+
+            handleSortChange() {
+                UI.renderMochilaOrderUI();
+                UI.renderizarQuestoesNaTela();
+            },
+
+            obterQuestoesFiltradas() {
+                const termoBusca = document.getElementById('searchQuestions').value.trim().toLowerCase();
+                const difsSelecionadas = Array.from(document.querySelectorAll('.chk-dif:checked')).map(el => el.value);
+                const formsSelecionados = Array.from(document.querySelectorAll('.chk-form:checked')).map(el => el.value);
+                
+                return AppState.questoesEmExibicao.filter(q => {
+                    let matchSearch = true;
+                    if(termoBusca) {
+                        matchSearch = q.enunciado.toLowerCase().includes(termoBusca);
+                        Object.values(q.alternativas).forEach(alt => { if(alt.toLowerCase().includes(termoBusca)) matchSearch = true; });
+                    }
+
+                    let matchTab = false;
+                    if(AppState.currentTabFilter === 'todas') matchTab = true;
+                    else if(AppState.currentTabFilter === 'corretas' && q.respondido && q.correto) matchTab = true;
+                    else if(AppState.currentTabFilter === 'erradas' && q.respondido && !q.correto) matchTab = true;
+                    else if(AppState.currentTabFilter === 'favoritas' && q.favorita) matchTab = true;
+
+                    let dStr = (q.dificuldade || 'Média').toLowerCase();
+                    let dCat = "Média";
+                    if(dStr.includes('fácil') || dStr.includes('facil')) dCat = "Fácil";
+                    if(dStr.includes('difícil') || dStr.includes('dificil') || dStr.includes('hard')) dCat = "Difícil";
+                    let matchDif = difsSelecionadas.includes(dCat);
+
+                    let fStr = (q.formato || '').toLowerCase();
+                    let catFormato = "Factual";
+                    if(fStr.includes('caso')) catFormato = "Caso Clínico";
+                    if(fStr.includes('proposi') || fStr.includes('i, ii')) catFormato = "Proposição";
+                    let matchForm = formsSelecionados.includes(catFormato);
+
+                    return matchSearch && matchTab && matchDif && matchForm;
+                });
+            }
+        };
+
+        // --- 8. LÓGICA DE NEGÓCIO ---
+        const AppLogic = {
+            addSelected(id) { if(!AppState.selectedCadernos.includes(id)) AppState.selectedCadernos.push(id); },
+            removeSelected(id) { AppState.selectedCadernos = AppState.selectedCadernos.filter(x => x !== id); },
+
+            salvarConfiguracoes() {
+                localStorage.setItem('claude_key', document.getElementById('claudeKey').value.trim());
+                localStorage.setItem('gemini_key', document.getElementById('geminiKey').value.trim());
+                
+                localStorage.setItem('claude_model', document.getElementById('claudeModel').value);
+                localStorage.setItem('gemini_model', document.getElementById('geminiModel').value);
+                
+                localStorage.setItem('motor_geracao', document.getElementById('prefMotorGeracao').value);
+                localStorage.setItem('motor_resposta', document.getElementById('prefMotorResposta').value);
+                
+                UI.selecionarMotor(document.getElementById('prefMotorGeracao').value || 'gemini');
+                UI.atualizarBotaoGerar();
+                
+                UI.toggleModal('apiModal');
+            },
+
+            aplicarPreferencias() {
+                const prefs = {
+                    dif: document.getElementById('prefDif').checked,
+                    form: document.getElementById('prefForm').checked,
+                    assunto: document.getElementById('prefAssunto').checked
+                };
+                localStorage.setItem('medq_prefs', JSON.stringify(prefs));
+                UI.aplicarClassesBody(prefs);
+                UI.renderizarQuestoesNaTela(); 
+            },
+
+            criarMochila() {
+                const nome = prompt("Nome da nova Mochila (Pasta):");
+                if(!nome || !nome.trim()) return;
+                const agora = Date.now();
+                AppState.mochilasDePastas.push({ id: 'moch_' + agora, nome: nome.trim(), created_at: agora });
+                Storage.salvarBanco({mochilas: true});
+            },
+
+            renomearMochila(id, event) {
+                event.stopPropagation();
+                const mochila = AppState.mochilasDePastas.find(m => m.id === id);
+                if(!mochila) return;
+                const novoNome = prompt("Renomear Mochila:", mochila.nome);
+                if(novoNome && novoNome.trim() && novoNome.trim() !== mochila.nome) {
+                    mochila.nome = novoNome.trim();
+                    Storage.salvarBanco({mochilas: true});
+                }
+            },
+
+            renomearCaderno(id, event) {
+                event.stopPropagation();
+                const caderno = AppState.bancoDeCadernos.find(c => c.id === id);
+                if(!caderno) return;
+                
+                const tipo = caderno.isSimulado ? "Simulado" : "Caderno";
+                const novoNome = prompt(`Renomear ${tipo} (Assunto):`, caderno.assuntos);
+                
+                if(novoNome && novoNome.trim() && novoNome.trim() !== caderno.assuntos) {
+                    caderno.assuntos = novoNome.trim();
+                    Storage.salvarBanco({cadernoId: id});
+                    
+                    UI.atualizarTextoBotaoDropdown();
+                    if(AppState.selectedCadernos.includes(id)) {
+                        UI.atualizarVisaoQuestoes(); 
+                    }
+                }
+            },
+
+            excluirMochila(idMochila, event) {
+                event.stopPropagation();
+                if(!confirm("Excluir esta mochila? Os cadernos dentro dela ficarão 'Avulsos' (sem pasta). Apenas a pasta será apagada.")) return;
+                AppState.mochilasDePastas = AppState.mochilasDePastas.filter(m => m.id !== idMochila);
+                AppState.bancoDeCadernos.forEach(c => { if(c.mochila_id === idMochila) delete c.mochila_id; });
+                Storage.salvarBanco({full: true});
+                UI.atualizarVisaoQuestoes();
+            },
+
+            abrirModalMover(cadernoId, event) {
+                event.stopPropagation();
+                document.getElementById('moveCadernoId').value = cadernoId;
+                const select = document.getElementById('selectMoveMochila');
+                select.innerHTML = `<option value="">-- Remover da Mochila (Deixar Avulso) --</option>`;
+                AppState.mochilasDePastas.forEach(m => {
+                    select.innerHTML += `<option value="${m.id}">🎒 ${m.nome}</option>`;
+                });
+                
+                const caderno = AppState.bancoDeCadernos.find(c => c.id === cadernoId);
+                if(caderno && caderno.mochila_id) select.value = caderno.mochila_id;
+                
+                UI.toggleModal('moveModal');
+            },
+
+            confirmarMoverCaderno() {
+                const cadernoId = document.getElementById('moveCadernoId').value;
+                const mochilaId = document.getElementById('selectMoveMochila').value;
+                const caderno = AppState.bancoDeCadernos.find(c => c.id === cadernoId);
+                
+                if(caderno) {
+                    if(mochilaId) caderno.mochila_id = mochilaId;
+                    else delete caderno.mochila_id;
+                    Storage.salvarBanco({cadernoId: cadernoId});
+                }
+                UI.toggleModal('moveModal');
+            },
+
+            refazerCaderno(id, event) {
+                event.stopPropagation();
+                if(!confirm("Limpar e refazer TODAS as questões deste caderno? (O seu histórico de acertos passados será mantido na memória).")) return;
+                const c = AppState.bancoDeCadernos.find(x => x.id === id);
+                if(c) {
+                    c.questoes.forEach(q => { q.respondido = false; q.escolha = null; q.oculta_revisao = false; });
+                    Storage.salvarBanco({cadernoId: id});
+                    if(AppState.selectedCadernos.includes(id)) UI.atualizarVisaoQuestoes();
+                }
+            },
+
+            refazerMochila(idMochila, event) {
+                event.stopPropagation();
+                if(!confirm("Limpar e refazer TODAS as questões de TODOS os cadernos desta mochila? (O seu histórico será mantido na memória).")) return;
+                let atualizaVisual = false;
+                AppState.bancoDeCadernos.forEach(c => {
+                    if(c.mochila_id === idMochila) {
+                        c.questoes.forEach(q => { q.respondido = false; q.escolha = null; q.oculta_revisao = false; });
+                        if(AppState.selectedCadernos.includes(c.id)) atualizaVisual = true;
+                    }
+                });
+                Storage.salvarBanco({full: true});
+                if(atualizaVisual) UI.atualizarVisaoQuestoes();
+            },
+
+            deletarCaderno(id, event) {
+                event.stopPropagation(); 
+                if(!confirm("Excluir este caderno permanentemente?")) return;
+                AppState.bancoDeCadernos = AppState.bancoDeCadernos.filter(c => c.id !== id);
+                AppLogic.removeSelected(id);
+                Cloud.deletarCaderno(id);
+                Storage.salvarBanco();
+                UI.atualizarVisaoQuestoes();
+            },
+
+            selecionarUnicoCaderno(id) {
+                AppState.selectedCadernos = [id];
+                UI.atualizarUIBanco(); 
+                UI.atualizarVisaoQuestoes();
+            },
+
+            toggleCadernoCheck(checkbox) {
+                const id = checkbox.value;
+                const cadernosReais = AppState.bancoDeCadernos.filter(c => !c.isSimulado).map(c => c.id);
+
+                if(id === 'todos') {
+                    if(checkbox.checked) AppState.selectedCadernos = [...cadernosReais];
+                    else AppState.selectedCadernos = [];
+                } else {
+                    AppLogic.removeSelected('todos');
+                    if(checkbox.checked) AppLogic.addSelected(id); else AppLogic.removeSelected(id);
+                }
+                UI.atualizarUIBanco(); 
+                UI.atualizarVisaoQuestoes();
+            },
+
+            toggleMochilaCheck(checkbox, mochilaId) {
+                const cadernosDaMochila = AppState.bancoDeCadernos.filter(c => c.mochila_id === mochilaId && !c.isSimulado).map(c => c.id);
+                if(checkbox.checked) {
+                    cadernosDaMochila.forEach(id => AppLogic.addSelected(id));
+                } else {
+                    cadernosDaMochila.forEach(id => AppLogic.removeSelected(id));
+                }
+                UI.atualizarUIBanco();
+                UI.atualizarVisaoQuestoes();
+            },
+
+            getQuestao(idUnica) {
+                for(let c of AppState.bancoDeCadernos) { let q = c.questoes.find(x => x.id_unica === idUnica); if(q) return q; }
+                return null;
+            },
+
+            toggleFavorita(idUnica) {
+                let q = AppLogic.getQuestao(idUnica);
+                if(!q) return;
+                q.favorita = !q.favorita;
+                Storage.salvarBanco({cadernoId: q.caderno_id});
+                if(AppState.currentTabFilter === 'favoritas') UI.renderizarQuestoesNaTela();
+                else {
+                    const card = document.getElementById(`card-${idUnica}`);
+                    const btn = card.querySelector('.favorite-btn');
+                    if(q.favorita) { btn.classList.add('active', 'text-amber-500'); btn.classList.remove('text-slate-300'); } 
+                    else { btn.classList.remove('active', 'text-amber-500'); btn.classList.add('text-slate-300'); }
+                }
+            },
+
+            selecionarAlternativa(idUnica, letra) {
+                let q = AppLogic.getQuestao(idUnica);
+                if(!q) return;
+
+                if(q.respondido) {
+                    if(q.oculta_revisao) {
+                        if(confirm("Você já respondeu esta questão. Deseja limpar a resposta e refazer?")) {
+                            AppLogic.refazerQuestao(idUnica, false);
+                        }
+                    }
+                    return; 
+                }
+                
+                q.escolha = letra;
+                Storage.salvarBanco({cadernoId: q.caderno_id}); 
+                
+                const container = document.getElementById(`opts-container-${idUnica}`);
+                container.querySelectorAll('.alt-row').forEach(opt => {
+                    opt.classList.remove('selected', 'bg-indigo-50/50', 'border-indigo-400', 'ring-1', 'ring-indigo-400');
+                    opt.classList.add('bg-white', 'border-slate-200');
+                    const circle = opt.querySelector('div');
+                    circle.classList.remove('bg-indigo-600', 'border-indigo-600', 'text-white');
+                    circle.classList.add('bg-slate-50', 'border-slate-300', 'text-slate-500');
+                });
+                
+                const selectedOpt = document.getElementById(`opt-${idUnica}-${letra}`);
+                selectedOpt.classList.remove('bg-white', 'border-slate-200');
+                selectedOpt.classList.add('selected', 'bg-indigo-50/50', 'border-indigo-400', 'ring-1', 'ring-indigo-400');
+                const selectedCircle = selectedOpt.querySelector('div');
+                selectedCircle.classList.remove('bg-slate-50', 'border-slate-300', 'text-slate-500');
+                selectedCircle.classList.add('bg-indigo-600', 'border-indigo-600', 'text-white');
+            },
+
+            responderQuestao(idUnica) {
+                let q = AppLogic.getQuestao(idUnica);
+                if(!q || q.respondido || !q.escolha) return UI.showError("Atenção", "Selecione uma alternativa antes de responder!");
+                
+                q.respondido = true;
+                q.correto = (q.escolha === q.resposta_correta);
+                q.oculta_revisao = false; 
+                
+                if(!Array.isArray(q.historico)) q.historico = [];
+                q.historico.push(q.correto);
+                
+                Storage.salvarBanco({cadernoId: q.caderno_id}); 
+                UI.renderizarQuestoesNaTela(); 
+            },
+
+            refazerQuestao(idUnica, pedirConfirmacao = true) {
+                let q = AppLogic.getQuestao(idUnica);
+                if(!q) return;
+                if(pedirConfirmacao && !confirm("Limpar a resposta desta questão e refazer?")) return;
+                q.respondido = false;
+                q.escolha = null;
+                q.oculta_revisao = false;
+                Storage.salvarBanco({cadernoId: q.caderno_id});
+                UI.renderizarQuestoesNaTela();
+            },
+
+            excluirComentario(idUnica) {
+                if(!confirm("Excluir comentário?")) return;
+                let q = AppLogic.getQuestao(idUnica);
+                if(!q) return;
+                q.explicacao_cega = null;
+                q.comentario_minimizado = true;
+                Storage.salvarBanco({cadernoId: q.caderno_id});
+                document.getElementById(`ai-box-${idUnica}`).classList.add('hidden');
+            }
+        };
+
+        // --- 9. UI (INTERAÇÕES E RENDERIZAÇÃO) ---
+        const UI = {
+            showError(title, details) {
+                alert(`❌ ${title}\n\n${details}`);
+            },
+
+            toggleModal(id) {
+                const modal = document.getElementById(id);
+                if(!modal) return;
+                const content = document.getElementById(id + 'Content');
+                if (modal.classList.contains('hidden')) {
+                    modal.classList.remove('hidden');
+                    setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+                } else {
+                    modal.classList.add('opacity-0'); content.classList.add('scale-95');
+                    setTimeout(() => modal.classList.add('hidden'), 300);
+                }
+            },
+
+            togglePainelFiltros() {
+                const painel = document.getElementById('painelUnificado');
+                if (painel.classList.contains('hidden')) {
+                    painel.classList.remove('hidden');
+                } else {
+                    painel.classList.add('hidden');
+                }
+            },
+
+            toggleSection(id, chevronId) {
+                const el = document.getElementById(id);
+                const chev = document.getElementById(chevronId);
+                if(el.classList.contains('hidden')) {
+                    el.classList.remove('hidden'); chev.style.transform = 'rotate(0deg)';
+                } else {
+                    el.classList.add('hidden'); chev.style.transform = 'rotate(-90deg)';
+                }
+            },
+
+            atualizarBotaoGerar() {
+                const motorEl = document.getElementById('motorIA_UI'); const motor = motorEl ? (motorEl.dataset.value || 'gemini') : (document.getElementById('prefMotorGeracao').value || 'gemini');
+                if(motor === 'claude') document.getElementById('btnGerarText').innerText = "Gerar Caderno (Claude)";
+                else if (motor === 'manual') document.getElementById('btnGerarText').innerText = "Gerar Prompt Manual";
+                else document.getElementById('btnGerarText').innerText = "Gerar Caderno (Gemini)";
+            },
+
+            acionarMinimizarTudo(minimizar) {
+                document.querySelectorAll('.q-card').forEach(card => {
+                    if (minimizar) card.classList.add('q-minimizada');
+                    else card.classList.remove('q-minimizada');
+                });
+            },
+
+            acionarModoRevisao(ativar) {
+                AppState.questoesEmExibicao.forEach(q => {
+                    if (q.respondido) q.oculta_revisao = ativar;
+                });
+                UI.renderizarQuestoesNaTela();
+                UI.toggleModal('displayModal');
+            },
+
+            toggleMinimizarQuestao(idUnica) {
+                const card = document.getElementById(`card-${idUnica}`);
+                card.classList.toggle('q-minimizada');
+            },
+
+            toggleCustomPrompt(idUnica) {
+                const box = document.getElementById(`custom-prompt-box-${idUnica}`);
+                const input = document.getElementById(`custom-input-${idUnica}`);
+                if(!box) return;
+                box.classList.toggle('hidden');
+                if(!box.classList.contains('hidden') && input) {
+                    setTimeout(() => input.focus(), 50);
+                }
+            },
+
+            toggleMinimizeComentario(idUnica) {
+                const q = AppLogic.getQuestao(idUnica);
+                const textTarget = document.getElementById(`ai-text-${idUnica}`);
+                const chevron = document.getElementById(`chevron-comentario-${idUnica}`);
+                const bottomChevron = document.getElementById(`chevron-comentario-bottom-${idUnica}`);
+                if(!q || !textTarget) return;
+
+                q.comentario_minimizado = !q.comentario_minimizado;
+                textTarget.classList.toggle('hidden', q.comentario_minimizado);
+                chevron?.classList.toggle('rotate-180', q.comentario_minimizado);
+                bottomChevron?.classList.toggle('rotate-180', q.comentario_minimizado);
+                const bottomLabel = bottomChevron?.parentElement?.querySelector('span');
+                if(bottomLabel) bottomLabel.innerText = q.comentario_minimizado ? 'Expandir Comentário' : 'Recolher Comentário';
+                Storage.salvarBanco({cadernoId: q.caderno_id});
+            },
+
+            selecionarMotor(v) {
+                const container = document.getElementById('motorIA_UI');
+                if(!container) return;
+                container.dataset.value = v;
+                container.querySelectorAll('.motor-btn').forEach(btn => {
+                    const isSelected = btn.dataset.motor === v;
+                    btn.classList.toggle('motor-btn-selected', isSelected);
+                    btn.classList.toggle('border-indigo-400', isSelected);
+                    btn.classList.toggle('bg-indigo-50', isSelected);
+                    btn.classList.toggle('text-indigo-700', isSelected);
+                    btn.classList.toggle('border-slate-200', !isSelected);
+                    btn.classList.toggle('bg-white', !isSelected);
+                    btn.classList.toggle('text-slate-600', !isSelected);
+                });
+                document.getElementById('prefMotorGeracao').value = v;
+                localStorage.setItem('motor_geracao', v);
+                UI.atualizarBotaoGerar();
+            },
+
+            sincronizarMotor() {
+                const container = document.getElementById('motorIA_UI');
+                const v = container ? container.dataset.value : (document.getElementById('prefMotorGeracao').value || 'gemini');
+                document.getElementById('prefMotorGeracao').value = v;
+                localStorage.setItem('motor_geracao', v);
+                UI.atualizarBotaoGerar();
+            },
+
+            alternarModoAlternativo() {
+                AppState.modoAlternativo = !AppState.modoAlternativo;
+                const isAlt = AppState.modoAlternativo;
+
+                // --- Animação do logo ---
+                const logoMed = document.getElementById('logoMed');
+                const logoRoom = document.getElementById('logoRoom');
+                const logoBtn = document.getElementById('logoEasterBtn');
+
+                if(isAlt) {
+                    // "MED " some deslizando para a esquerda
+                    if(logoMed) { logoMed.style.maxWidth = '0.01px'; logoMed.style.opacity = '0'; logoMed.style.transform = 'translateX(-12px)'; logoMed.style.paddingRight = '0'; }
+                    // "Room" desce levemente e fica em laranja
+                    if(logoRoom) { setTimeout(() => { logoRoom.style.color = '#f59e0b'; logoRoom.style.marginLeft = '0'; }, 150); }
+                    // Ícone do cérebro vira 🌐
+                    if(logoBtn) { logoBtn.style.transform = 'rotate(360deg) scale(1.15)'; logoBtn.style.transition = 'transform 0.5s ease, background 0.3s'; setTimeout(() => { logoBtn.innerText = '🌐'; logoBtn.style.transform = ''; logoBtn.style.background = '#fef3c7'; logoBtn.style.borderColor = '#fcd34d'; }, 400); }
+                    // Toast easter egg
+                    UI.showEasterEggToast('🌐 Modo Livre ativado! Vá em <b>Gerar Caderno</b> agora pra uma surpresa 👀');
+                } else {
+                    if(logoMed) { logoMed.style.maxWidth = '3em'; logoMed.style.opacity = '1'; logoMed.style.transform = 'translateX(0)'; logoMed.style.paddingRight = '1px'; }
+                    if(logoRoom) { logoRoom.style.color = ''; logoRoom.style.marginLeft = ''; }
+                    if(logoBtn) { logoBtn.style.transform = 'rotate(-360deg) scale(1)'; logoBtn.style.transition = 'transform 0.4s ease, background 0.3s'; setTimeout(() => { logoBtn.innerText = '🧠'; logoBtn.style.transform = ''; logoBtn.style.background = ''; logoBtn.style.borderColor = ''; }, 350); }
+                }
+
+                // --- Modal de geração ---
+                const banner = document.getElementById('bannerModoAlt');
+                if(banner) banner.classList.toggle('hidden', !isAlt);
+
+                const titulo = document.getElementById('gerarModalTitle');
+                if(titulo) titulo.innerHTML = isAlt ? '🌐 Gerar Caderno — Modo Livre' : '✨ Gerar Novo Caderno';
+
+                const camposMed = document.getElementById('camposModoMed');
+                if(camposMed) camposMed.classList.toggle('hidden', isAlt);
+
+                const campoAssuntos = document.getElementById('assuntos');
+                if(campoAssuntos) {
+                    campoAssuntos.placeholder = isAlt
+                        ? 'Coloque qualquer assunto aqui, qualquer!'
+                        : 'Assuntos a serem cobrados (Obrigatório)';
+                    campoAssuntos.classList.toggle('border-l-indigo-500', !isAlt);
+                    campoAssuntos.classList.toggle('border-l-amber-400', isAlt);
+                }
+
+                const campoInstrucoes = document.getElementById('instrucoesCustom');
+                if(campoInstrucoes) campoInstrucoes.placeholder = isAlt
+                    ? 'Coloque algum pedido personalizado sobre a geração de questões'
+                    : 'Instruções Livres...';
+
+                const campoMateriaWrapper = document.getElementById('campoMateriaWrapper');
+                if(campoMateriaWrapper) campoMateriaWrapper.classList.toggle('hidden', isAlt);
+            },
+
+            showEasterEggToast(msg) {
+                // Remove existing toast if any
+                const old = document.getElementById('easterToast');
+                if(old) old.remove();
+
+                const toast = document.createElement('div');
+                toast.id = 'easterToast';
+                toast.className = 'fixed bottom-6 left-1/2 z-[999] px-5 py-3.5 rounded-2xl shadow-xl text-sm font-semibold text-slate-800 bg-white border border-amber-200 flex items-center gap-3 pointer-events-none';
+                toast.style.cssText = 'transform:translate(-50%,40px);opacity:0;transition:transform 0.4s cubic-bezier(.34,1.56,.64,1),opacity 0.4s ease;max-width:90vw;';
+                toast.innerHTML = `<span style="font-size:1.4em">🌐</span><span>${msg}</span>`;
+                document.body.appendChild(toast);
+
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        toast.style.transform = 'translate(-50%,0)';
+                        toast.style.opacity = '1';
+                    });
+                });
+
+                setTimeout(() => {
+                    toast.style.transform = 'translate(-50%,40px)';
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 500);
+                }, 4500);
+            },
+
+            aplicarClassesBody(prefs) {
+                if(!prefs.dif) document.body.classList.add('hide-dificuldade'); else document.body.classList.remove('hide-dificuldade');
+                if(!prefs.form) document.body.classList.add('hide-formato'); else document.body.classList.remove('hide-formato');
+                if(!prefs.assunto) document.body.classList.add('hide-assunto'); else document.body.classList.remove('hide-assunto');
+            },
+
+            toggleImportText() {
+                const sec = document.getElementById('importTextSection');
+                if(sec.classList.contains('hidden')) sec.classList.remove('hidden');
+                else sec.classList.add('hidden');
+            },
+
+            copiarPromptManual() {
+                const text = document.getElementById('promptManualText').value;
+                navigator.clipboard.writeText(text).then(() => {
+                    const btn = document.getElementById('btnCopiarPrompt');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '✅ Prompt Copiado com Sucesso!';
+                    setTimeout(() => { btn.innerHTML = originalText; }, 2500);
+                }).catch(err => {
+                    UI.showError("Erro na Área de Transferência", "Falha ao copiar automaticamente. Selecione e copie manualmente.");
+                });
+            },
+
+            toggleMochilaList(id) {
+                const div = document.getElementById(`list_moch_${id}`);
+                const icon = document.getElementById(`icon_moch_${id}`);
+                if(div.style.display === 'none') {
+                    div.style.display = 'flex';
+                    icon.innerText = '▼';
+                } else {
+                    div.style.display = 'none';
+                    icon.innerText = '▶';
+                }
+            },
+
+            toggleMochilaExport(chk, mochilaId) {
+                const cads = document.querySelectorAll(`.cad-moch-${mochilaId}`);
+                cads.forEach(c => c.checked = chk.checked);
+                UI.updateExportFilename();
+            },
+
+            checkMochilaExportState(mochilaId) {
+                const cads = document.querySelectorAll(`.cad-moch-${mochilaId}`);
+                const checkedCads = document.querySelectorAll(`.cad-moch-${mochilaId}:checked`);
+                const mochChk = document.querySelector(`.chk-export-mochila[data-id="${mochilaId}"]`);
+                
+                if(mochChk) {
+                    if(cads.length > 0 && checkedCads.length === cads.length) {
+                        mochChk.checked = true;
+                        mochChk.indeterminate = false;
+                    } else if (checkedCads.length > 0) {
+                        mochChk.checked = false;
+                        mochChk.indeterminate = true;
+                    } else {
+                        mochChk.checked = false;
+                        mochChk.indeterminate = false;
+                    }
+                }
+            },
+
+            updateExportFilename() {
+                const typeEl = document.querySelector('input[name="exportType"]:checked');
+                if(!typeEl) return;
+                const type = typeEl.value;
+                const input = document.getElementById('exportFilename');
+                
+                const now = new Date();
+                const dataStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth()+1).padStart(2, '0')}-${now.getFullYear()}_${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
+
+                if(type === 'all') {
+                    input.value = `Backup_Geral_${dataStr}`;
+                    return;
+                }
+                
+                const cadsChecked = Array.from(document.querySelectorAll('.chk-export-caderno:checked'));
+                const mochilasEnvolvidas = new Set();
+                let qCad = 0;
+                let qSim = 0;
+
+                cadsChecked.forEach(c => {
+                    if (c.dataset.simulado === 'true') qSim++;
+                    else {
+                        qCad++;
+                        const isInsideMochila = c.className.match(/cad-moch-([a-zA-Z0-9_]+)/);
+                        if (isInsideMochila) mochilasEnvolvidas.add(isInsideMochila[1]);
+                    }
+                });
+
+                let qMoch = mochilasEnvolvidas.size;
+
+                if (qMoch === 0 && qCad === 0 && qSim === 0) {
+                    input.value = `Backup_Vazio_${dataStr}`;
+                    return;
+                }
+
+                let parts = [];
+                if(qMoch > 0) parts.push(`${qMoch}moch`);
+                if(qCad > 0) parts.push(`${qCad}cad`);
+                if(qSim > 0) parts.push(`${qSim}sim`);
+
+                input.value = `Backup_${parts.join('_')}_${dataStr}`;
+            },
+
+            toggleExportSelectionUI(show) {
+                const list = document.getElementById('exportSelectionList');
+                if(show) list.classList.remove('hidden');
+                else list.classList.add('hidden');
+                list.style.display = show ? 'flex' : 'none'; 
+            },
+
+            getTimestampItem(item) {
+                if(!item) return 0;
+                if(typeof item.created_at === 'number') return item.created_at;
+                if(item.id) {
+                    const match = String(item.id).match(/_(\d+)/);
+                    if(match) return Number(match[1]);
+                }
+                if(item.data_hora) {
+                    const parts = String(item.data_hora).match(/(\d{2})\/(\d{2})\/(\d{4}),?\s*(\d{2})?:?(\d{2})?/);
+                    if(parts) {
+                        const [, dia, mes, ano, hora = '00', minuto = '00'] = parts;
+                        return new Date(`${ano}-${mes}-${dia}T${hora}:${minuto}:00`).getTime();
+                    }
+                    const parsed = Date.parse(item.data_hora);
+                    if(!Number.isNaN(parsed)) return parsed;
+                }
+                return 0;
+            },
+
+            ordenarMaisRecentes(lista) {
+                return [...lista].sort((a, b) => UI.getTimestampItem(b) - UI.getTimestampItem(a));
+            },
+
+            getTimestampMochila(mochila) {
+                const tsMochila = UI.getTimestampItem(mochila);
+                if(tsMochila) return tsMochila;
+                const cads = AppState.bancoDeCadernos.filter(c => c.mochila_id === mochila.id);
+                return cads.reduce((max, c) => Math.max(max, UI.getTimestampItem(c)), 0);
+            },
+
+            ordenarMochilasMaisRecentes(lista) {
+                return [...lista].sort((a, b) => UI.getTimestampMochila(b) - UI.getTimestampMochila(a));
+            },
+
+            renderCadernoSidebarItem(caderno) {
+                const isSim = caderno.isSimulado;
+                const icon = isSim ? '📝' : '📓';
+                const bgClass = isSim ? 'bg-purple-50 border-purple-100 hover:border-purple-300' : 'bg-white border-slate-100 hover:border-indigo-200';
+                const titulo = caderno.materia ? `${caderno.assuntos} - ${caderno.materia}` : caderno.assuntos;
+                const tituloCurto = titulo.length > 25 ? titulo.substring(0, 25) + '...' : titulo;
+                
+                const qResp = caderno.questoes.filter(q => q.respondido);
+                let badgeDesempenho = '';
+                if(qResp.length > 0) {
+                    const acertos = qResp.filter(q => q.correto).length;
+                    const pct = Math.round((acertos / qResp.length) * 100);
+                    let cor = pct >= 75 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : (pct >= 50 ? 'text-amber-600 bg-amber-50 border-amber-100' : 'text-rose-600 bg-rose-50 border-rose-100');
+                    badgeDesempenho = `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded border ${cor}">${pct}%</span>`;
+                }
+                
+                return `
+                    <div class="flex justify-between items-center p-2.5 rounded-lg border transition cursor-pointer group shrink-0 ${bgClass}">
+                        <div class="flex flex-col overflow-hidden w-full" onclick="AppLogic.selecionarUnicoCaderno('${caderno.id}')">
+                            <span class="text-xs font-bold text-slate-700 truncate group-hover:text-indigo-700 transition" title="${titulo}">${icon} ${tituloCurto}</span>
+                            <div class="flex items-center gap-1.5 mt-1">
+                                <span class="text-[10px] font-semibold text-slate-400 bg-white/50 px-1.5 py-0.5 rounded">${caderno.questoes.length}q</span>
+                                ${badgeDesempenho}
+                                <span class="text-[10px] text-slate-400 ml-auto">${caderno.data_hora.split(' ')[0]}</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col ml-1 gap-1 items-center justify-center">
+                            <button onclick="AppLogic.refazerCaderno('${caderno.id}', event)" class="text-slate-300 hover:text-indigo-500 transition px-1 text-[11px]" title="Refazer Todas as Questões">↻</button>
+                            <button onclick="AppLogic.renomearCaderno('${caderno.id}', event)" class="text-slate-300 hover:text-indigo-500 transition px-1 text-[11px]" title="Renomear">✏️</button>
+                            ${!isSim ? `<button onclick="AppLogic.abrirModalMover('${caderno.id}', event)" class="text-slate-300 hover:text-indigo-500 transition px-1 text-[11px]" title="Mover para Mochila">📁</button>` : ''}
+                            <button onclick="AppLogic.deletarCaderno('${caderno.id}', event)" class="text-slate-300 hover:text-red-500 transition px-1 text-[11px]" title="Excluir">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            },
+
+            atualizarUIBanco() {
+                const lista = document.getElementById('listaCadernos');
+                const dropdownList = document.getElementById('listCadernosDropdown');
+
+                let sidebarHTML = `
+                    <button onclick="AppLogic.criarMochila()" class="w-full shrink-0 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2.5 rounded-lg text-xs transition border border-dashed border-indigo-200 mb-3 flex items-center justify-center gap-1 shadow-sm">
+                        ➕ Criar Nova Mochila (Pasta)
+                    </button>
+                `;
+
+                UI.ordenarMochilasMaisRecentes(AppState.mochilasDePastas).forEach(mochila => {
+                    const cadsMochila = UI.ordenarMaisRecentes(AppState.bancoDeCadernos.filter(c => c.mochila_id === mochila.id));
+                    
+                    let totalRespMochila = 0, certasMochila = 0;
+                    cadsMochila.forEach(c => {
+                        const r = c.questoes.filter(q => q.respondido);
+                        totalRespMochila += r.length;
+                        certasMochila += r.filter(q => q.correto).length;
+                    });
+                    let badgeMochila = '';
+                    if(totalRespMochila > 0) {
+                        const pctMochila = Math.round((certasMochila/totalRespMochila)*100);
+                        let corM = pctMochila >= 75 ? 'text-emerald-500' : (pctMochila >= 50 ? 'text-amber-500' : 'text-rose-500');
+                        badgeMochila = `<span class="${corM} font-extrabold ml-1">· ${pctMochila}%</span>`;
+                    }
+
+                    sidebarHTML += `
+                        <div class="flex flex-col shrink-0 mb-3 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                            <div class="flex justify-between items-center bg-slate-100 px-3 py-2 cursor-pointer hover:bg-slate-200 transition" onclick="UI.toggleMochilaList('${mochila.id}')">
+                                <span class="font-bold text-[11px] text-slate-700 uppercase tracking-wider flex items-center gap-1.5"><span id="icon_moch_${mochila.id}" class="text-[9px] text-slate-400">▼</span> 🎒 ${mochila.nome} <span class="bg-white px-1.5 rounded text-[9px] font-bold ml-1">${cadsMochila.length}</span> ${badgeMochila}</span>
+                                <div class="flex gap-1 items-center">
+                                    <button onclick="AppLogic.refazerMochila('${mochila.id}', event)" class="text-slate-400 hover:text-indigo-500 transition px-1" title="Refazer Toda a Mochila">↻</button>
+                                    <button onclick="AppLogic.renomearMochila('${mochila.id}', event)" class="text-slate-400 hover:text-indigo-500 transition px-1" title="Renomear Mochila">✏️</button>
+                                    <button onclick="AppLogic.excluirMochila('${mochila.id}', event)" class="text-slate-400 hover:text-red-500 transition px-1" title="Excluir Mochila">🗑️</button>
+                                </div>
+                            </div>
+                            <div id="list_moch_${mochila.id}" class="flex-col gap-1.5 p-2 bg-white" style="display: flex;">
+                    `;
+                    if(cadsMochila.length === 0) sidebarHTML += `<span class="text-[10px] text-slate-400 text-center py-2 italic shrink-0">Mochila vazia</span>`;
+                    cadsMochila.forEach(caderno => { sidebarHTML += UI.renderCadernoSidebarItem(caderno); });
+                    sidebarHTML += `</div></div>`;
+                });
+
+                const cadernosAvulsos = AppState.bancoDeCadernos.filter(c => !c.mochila_id && !c.isSimulado);
+                if(cadernosAvulsos.length > 0) {
+                    sidebarHTML += `<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mt-2 mb-1 shrink-0">Cadernos Avulsos</span>`;
+                    UI.ordenarMaisRecentes(cadernosAvulsos).forEach(caderno => { sidebarHTML += UI.renderCadernoSidebarItem(caderno); });
+                }
+
+                const simulados = AppState.bancoDeCadernos.filter(c => c.isSimulado);
+                if(simulados.length > 0) {
+                    sidebarHTML += `<span class="text-[10px] font-bold text-purple-400 uppercase tracking-wider ml-1 mt-3 mb-1 shrink-0">Simulados</span>`;
+                    UI.ordenarMaisRecentes(simulados).forEach(caderno => { sidebarHTML += UI.renderCadernoSidebarItem(caderno); });
+                }
+                lista.innerHTML = sidebarHTML;
+
+
+                const cadernosEstudo = AppState.bancoDeCadernos.filter(c => !c.isSimulado);
+                const isAllChecked = (cadernosEstudo.length > 0 && cadernosEstudo.every(c => AppState.selectedCadernos.includes(c.id))) ? 'checked' : '';
+
+                let dropdownHTML = `
+                    <div class="p-3 bg-slate-100 border-b border-slate-200 sticky top-0 z-10 shrink-0">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" value="todos" ${isAllChecked} onchange="AppLogic.toggleCadernoCheck(this)" class="accent-indigo-600 w-4 h-4 cursor-pointer">
+                            <span class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">📚 Selecionar Toda a Mesa (Estudo)</span>
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-slate-50/30">
+                `;
+
+                dropdownHTML += `<div class="flex flex-col gap-2"><h4 class="text-[10px] font-bold text-indigo-500 uppercase tracking-wider mb-2 border-b border-indigo-100 pb-1">🎒 Mochilas</h4>`;
+                if(AppState.mochilasDePastas.length === 0) dropdownHTML += `<span class="text-[10px] text-slate-400 italic">Nenhuma mochila criada</span>`;
+                UI.ordenarMochilasMaisRecentes(AppState.mochilasDePastas).forEach(m => {
+                    const cads = UI.ordenarMaisRecentes(AppState.bancoDeCadernos.filter(c => c.mochila_id === m.id && !c.isSimulado));
+                    const allSel = cads.length > 0 && cads.every(c => AppState.selectedCadernos.includes(c.id));
+                    dropdownHTML += `
+                        <label class="flex items-center gap-2 p-2 hover:bg-indigo-50 cursor-pointer border border-slate-200 rounded-lg bg-white transition shadow-sm">
+                            <input type="checkbox" ${allSel ? 'checked' : ''} onchange="AppLogic.toggleMochilaCheck(this, '${m.id}')" class="accent-indigo-600 w-3.5 h-3.5 cursor-pointer">
+                            <span class="text-[11px] font-bold text-indigo-800 truncate" title="${m.nome}">${m.nome} <span class="text-[9px] text-slate-400 font-normal ml-1">(${cads.length})</span></span>
+                        </label>
+                    `;
+                });
+                dropdownHTML += `</div>`;
+
+                dropdownHTML += `<div class="flex flex-col gap-2"><h4 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">📓 Cadernos Avulsos</h4>`;
+                if(cadernosAvulsos.length === 0) dropdownHTML += `<span class="text-[10px] text-slate-400 italic">Nenhum caderno avulso</span>`;
+                UI.ordenarMaisRecentes(cadernosAvulsos).forEach(c => {
+                    const sel = AppState.selectedCadernos.includes(c.id) ? 'checked' : '';
+                    dropdownHTML += `
+                        <label class="flex items-center gap-2 p-2 hover:bg-slate-50 cursor-pointer border border-slate-200 rounded-lg bg-white transition shadow-sm">
+                            <input type="checkbox" value="${c.id}" ${sel} onchange="AppLogic.toggleCadernoCheck(this)" class="accent-indigo-600 w-3.5 h-3.5 cursor-pointer">
+                            <span class="text-[10px] font-semibold text-slate-700 truncate" title="${c.assuntos}">${c.assuntos}</span>
+                        </label>
+                    `;
+                });
+                dropdownHTML += `</div>`;
+
+                dropdownHTML += `<div class="flex flex-col gap-2"><h4 class="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-2 border-b border-purple-100 pb-1">📝 Simulados</h4>`;
+                if(simulados.length === 0) dropdownHTML += `<span class="text-[10px] text-slate-400 italic">Nenhum simulado gerado</span>`;
+                UI.ordenarMaisRecentes(simulados).forEach(c => {
+                    const sel = AppState.selectedCadernos.includes(c.id) ? 'checked' : '';
+                    dropdownHTML += `
+                        <label class="flex items-center gap-2 p-2 hover:bg-purple-50 cursor-pointer border border-purple-200 rounded-lg bg-white transition shadow-sm">
+                            <input type="checkbox" value="${c.id}" ${sel} onchange="AppLogic.toggleCadernoCheck(this)" class="accent-purple-600 w-3.5 h-3.5 cursor-pointer">
+                            <span class="text-[10px] font-semibold text-purple-800 truncate" title="${c.assuntos}">${c.assuntos}</span>
+                        </label>
+                    `;
+                });
+                dropdownHTML += `</div>
+                    <div class="border-t border-slate-200 bg-white p-2 sticky bottom-0 z-10">
+                        <button onclick="UI.toggleCadernosDropdown()" class="w-full py-2 flex items-center justify-center gap-1 text-[9px] font-bold text-slate-400 hover:text-indigo-600 transition uppercase tracking-wider">
+                            ▲ Recolher Mesa de Estudos
+                        </button>
+                    </div>
+                </div>`;
+
+                dropdownList.innerHTML = dropdownHTML;
+                UI.atualizarTextoBotaoDropdown();
+                
+                const contOrdem = document.getElementById('containerOrdenacaoCadernos');
+                const isSingleSimulado = AppState.selectedCadernos.length === 1 && AppState.bancoDeCadernos.find(c => c.id === AppState.selectedCadernos[0])?.isSimulado;
+                if (AppState.selectedCadernos.length <= 1 && !isSingleSimulado) contOrdem.classList.add('hidden');
+                else contOrdem.classList.remove('hidden');
+            },
+
+            toggleCadernosDropdown() { document.getElementById('listCadernosDropdown').classList.toggle('hidden'); },
+
+            atualizarTextoBotaoDropdown() {
+                const btnTxt = document.getElementById('txtBtnCadernos');
+                const cadernosReais = AppState.bancoDeCadernos.filter(c => !c.isSimulado);
+                
+                if(AppState.selectedCadernos.length === 0) {
+                    btnTxt.innerText = "🫙 Mesa Vazia (Selecione itens)";
+                    return;
+                }
+
+                const temTodosOsReais = cadernosReais.length > 0 && cadernosReais.every(c => AppState.selectedCadernos.includes(c.id));
+                const soTemReais = AppState.selectedCadernos.every(id => {
+                    const c = AppState.bancoDeCadernos.find(x => x.id === id);
+                    return c && !c.isSimulado;
+                });
+
+                if(temTodosOsReais && soTemReais) {
+                    btnTxt.innerText = "📚 Mesa de Estudos (Todos)";
+                } else if(AppState.selectedCadernos.length === 1) {
+                    const c = AppState.bancoDeCadernos.find(x => x.id === AppState.selectedCadernos[0]);
+                    btnTxt.innerText = c ? `${c.isSimulado ? '📝' : '📓'} ${c.assuntos.substring(0,15)}...` : "Selecionar Cadernos";
+                } else {
+                    btnTxt.innerText = `📚 Mesa Mista (${AppState.selectedCadernos.length} itens)`;
+                }
+            },
+
+            atualizarVisaoQuestoes() {
+                AppState.questoesEmExibicao = [];
+                
+                if(AppState.selectedCadernos.length === 0 || AppState.bancoDeCadernos.length === 0) {
+                    document.getElementById('welcomeState').classList.remove('hidden');
+                    document.getElementById('dashboardDesempenhoWrapper').classList.add('hidden');
+                    document.getElementById('dashboardDesempenhoWrapper').classList.remove('flex');
+                    
+                    if(AppState.bancoDeCadernos.length === 0) {
+                        document.getElementById('filterBar').classList.add('hidden');
+                        document.getElementById('welcomeIcon').innerText = "📖";
+                        document.getElementById('welcomeTitle').innerText = "Med Room";
+                        document.getElementById('welcomeDesc').innerHTML = "Gere um caderno à esquerda ou importe do seu histórico para iniciar a sua revisão.";
+                    } else {
+                        document.getElementById('filterBar').classList.remove('hidden');
+                        document.getElementById('welcomeIcon').innerText = "🫙";
+                        document.getElementById('welcomeTitle').innerText = "Mesa de Estudos Vazia";
+                        document.getElementById('welcomeDesc').innerHTML = "Não selecionou nenhum caderno para exibir. Clique em <b>Mesa de Estudos Ativa</b> acima para adicionar mochilas ou cadernos avulsos.";
+                    }
+                    
+                    document.getElementById('questionsContainer').innerHTML = '';
+                    document.getElementById('statsHeader').classList.add('hidden');
+                    return;
+                }
+
+                document.getElementById('welcomeState').classList.add('hidden');
+                document.getElementById('filterBar').classList.remove('hidden');
+                document.getElementById('statsHeader').classList.remove('hidden');
+
+                AppState.selectedCadernos.forEach(id => {
+                    const c = AppState.bancoDeCadernos.find(x => x.id === id);
+                    if(c) AppState.questoesEmExibicao = AppState.questoesEmExibicao.concat(c.questoes);
+                });
+                
+                UI.renderMochilaOrderUI();
+                UI.renderizarQuestoesNaTela(); 
+            },
+
+            renderMochilaOrderUI() {
+                const container = document.getElementById('mochilaManualOrder');
+                const sortSelect = document.getElementById('selOrdemCadernos');
+
+                if(sortSelect.value !== 'custom' || AppState.modoAgrupamento === 'global') {
+                    container.classList.add('hidden');
+                    return;
+                }
+
+                container.classList.remove('hidden');
+
+                const isSingleSimulado = AppState.selectedCadernos.length === 1 && AppState.bancoDeCadernos.find(c => c.id === AppState.selectedCadernos[0])?.isSimulado;
+
+                let itensParaMover = [];
+                
+                if(isSingleSimulado) {
+                    const sim = AppState.bancoDeCadernos.find(c => c.id === AppState.selectedCadernos[0]);
+                    if(sim.ordem_virtuais.length <= 1) {
+                        container.innerHTML = `<div class="text-[10px] text-slate-500 bg-slate-50 border border-slate-100 p-2 rounded">Este simulado possui origem de apenas 1 caderno.</div>`;
+                        return;
+                    }
+                    itensParaMover = sim.ordem_virtuais.map(idVirt => ({ id: idVirt, nome: sim.virtuais_info[idVirt] }));
+                } else {
+                    if(AppState.selectedCadernos.length <= 1) {
+                        container.innerHTML = `<div class="text-[10px] text-slate-500 bg-slate-50 border border-slate-100 p-2 rounded">A sua mesa possui apenas um item ativo. Adicione mais para organizar a sequência.</div>`;
+                        return;
+                    }
+                    itensParaMover = AppState.selectedCadernos.map(id => {
+                        const c = AppState.bancoDeCadernos.find(x => x.id === id);
+                        return { id: id, nome: c ? (c.materia ? `${c.assuntos} - ${c.materia}` : c.assuntos) : 'Caderno Desconhecido' };
+                    });
+                }
+
+                container.innerHTML = `<h5 class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2 mt-2">Arraste para reordenar a sequência de estudo:</h5>`;
+
+                const listDiv = document.createElement('div');
+                listDiv.className = 'flex flex-col gap-1';
+                
+                const handleDragStart = function(e) {
+                    AppState.dragStartIndex = +this.dataset.index;
+                    e.dataTransfer.effectAllowed = 'move';
+                    setTimeout(() => this.classList.add('dragging'), 0);
+                }
+                const handleDragOver = function(e) { e.preventDefault(); }
+                const handleDragEnter = function(e) {
+                    e.preventDefault();
+                    if(+this.dataset.index !== AppState.dragStartIndex) this.classList.add('drag-over');
+                }
+                const handleDragLeave = function(e) { this.classList.remove('drag-over'); }
+                const handleDragEnd = function(e) {
+                    this.classList.remove('dragging');
+                    document.querySelectorAll('.drag-item').forEach(item => item.classList.remove('drag-over'));
+                }
+                const handleDrop = function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    const dragEndIndex = +this.dataset.index;
+                    
+                    if(AppState.dragStartIndex !== null && AppState.dragStartIndex !== dragEndIndex) {
+                        const isSingleSimulado = AppState.selectedCadernos.length === 1 && AppState.bancoDeCadernos.find(c => c.id === AppState.selectedCadernos[0])?.isSimulado;
+                        
+                        if (isSingleSimulado) {
+                            const sim = AppState.bancoDeCadernos.find(c => c.id === AppState.selectedCadernos[0]);
+                            const itemToMove = sim.ordem_virtuais.splice(AppState.dragStartIndex, 1)[0];
+                            sim.ordem_virtuais.splice(dragEndIndex, 0, itemToMove);
+                        } else {
+                            const itemToMove = AppState.selectedCadernos.splice(AppState.dragStartIndex, 1)[0];
+                            AppState.selectedCadernos.splice(dragEndIndex, 0, itemToMove);
+                        }
+                        
+                        Storage.salvarBanco({full: true});
+                        UI.renderMochilaOrderUI();
+                        UI.renderizarQuestoesNaTela();
+                    }
+                }
+
+                itensParaMover.forEach((itemObj, index) => {
+                    const item = document.createElement('div');
+                    item.draggable = true;
+                    item.dataset.index = index;
+                    item.className = "drag-item flex justify-between items-center bg-white border border-slate-200 p-2 rounded text-[10px] shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-colors";
+                    item.innerHTML = `<span class="truncate pr-2 font-bold text-slate-700 pointer-events-none">≡ ${index + 1}. ${itemObj.nome}</span>`;
+                    
+                    item.addEventListener('dragstart', handleDragStart);
+                    item.addEventListener('dragover', handleDragOver);
+                    item.addEventListener('dragenter', handleDragEnter);
+                    item.addEventListener('dragleave', handleDragLeave);
+                    item.addEventListener('dragend', handleDragEnd);
+                    item.addEventListener('drop', handleDrop);
+
+                    listDiv.appendChild(item);
+                });
+                
+                container.appendChild(listDiv);
+            },
+
+            renderizarQuestoesNaTela() {
+                const container = document.getElementById('questionsContainer');
+                const ordCad = document.getElementById('selOrdemCadernos').value;
+                const ordQst = document.getElementById('selOrdemQuestoes').value;
+                
+                let questoesFiltradas = Filters.obterQuestoesFiltradas();
+
+                questoesFiltradas.sort((a, b) => {
+                    const getDif = d => {
+                        let l = (d || 'Média').toLowerCase();
+                        if(l.includes('fácil') || l.includes('facil')) return 1;
+                        if(l.includes('difícil') || l.includes('dificil') || l.includes('hard')) return 3;
+                        return 2;
+                    };
+
+                    const difA = getDif(a.dificuldade);
+                    const difB = getDif(b.dificuldade);
+                    const cmpDif = (ordQst === 'facil_dificil') ? difA - difB : (ordQst === 'dificil_facil' ? difB - difA : 0);
+                    const cmpOrig = a.numero_original - b.numero_original;
+
+                    if (AppState.modoAgrupamento === 'global') {
+                        if (cmpDif !== 0) return cmpDif;
+                        return cmpOrig;
+                    } else {
+                        const isSingleSimulado = AppState.selectedCadernos.length === 1 && AppState.bancoDeCadernos.find(c => c.id === AppState.selectedCadernos[0])?.isSimulado;
+                        let rankA = 0, rankB = 0;
+
+                        if (isSingleSimulado) {
+                            const sim = AppState.bancoDeCadernos.find(c => c.id === AppState.selectedCadernos[0]);
+                            rankA = sim.ordem_virtuais.indexOf(a.caderno_origem_id);
+                            rankB = sim.ordem_virtuais.indexOf(b.caderno_origem_id);
+                        } else {
+                            if (ordCad === 'custom') {
+                                rankA = AppState.selectedCadernos.indexOf(a.caderno_id);
+                                rankB = AppState.selectedCadernos.indexOf(b.caderno_id);
+                            } else if (ordCad === 'antigo') {
+                                rankA = UI.getTimestampItem(AppState.bancoDeCadernos.find(c => c.id === a.caderno_id));
+                                rankB = UI.getTimestampItem(AppState.bancoDeCadernos.find(c => c.id === b.caderno_id));
+                            } else { 
+                                rankA = -UI.getTimestampItem(AppState.bancoDeCadernos.find(c => c.id === a.caderno_id));
+                                rankB = -UI.getTimestampItem(AppState.bancoDeCadernos.find(c => c.id === b.caderno_id));
+                            }
+                        }
+
+                        if (rankA !== rankB) return rankA - rankB;
+                        if (cmpDif !== 0) return cmpDif;
+                        return cmpOrig;
+                    }
+                });
+
+                container.innerHTML = '';
+                document.getElementById('txtMostrandoQtd').innerText = `Mostrando ${questoesFiltradas.length} de ${AppState.questoesEmExibicao.length} questões`;
+
+                const termoBusca = document.getElementById('searchQuestions').value.trim();
+
+                questoesFiltradas.forEach((q, indexNumber) => {
+                    const txtEnunciado = Utils.highlightText(q.enunciado, termoBusca);
+                    const hideResp = q.oculta_revisao;
+                    
+                    let proposicoesHtml = '';
+                    if(q.proposicoes && q.proposicoes.length > 0) {
+                        proposicoesHtml = `<div class="bg-slate-50 border-l-4 border-slate-300 p-4 rounded-r-lg my-4 text-sm font-mono space-y-2 text-slate-700">`;
+                        q.proposicoes.forEach(p => { proposicoesHtml += `<p>${Utils.highlightText(p, termoBusca)}</p>`; });
+                        proposicoesHtml += `</div>`;
+                    }
+
+                    let alternativasHtml = '';
+                    // FORÇANDO A ORDEM ALFABÉTICA (A, B, C, D) PARA IGNORAR A BAGUNÇA DO FIREBASE
+                    Object.keys(q.alternativas).sort().forEach(letra => {
+                        const isSelected = q.escolha === letra;
+                        const isDisabled = q.respondido;
+                        const isVisualLocked = isDisabled && !hideResp;
+                        
+                        let cssRow = 'bg-white border-slate-200';
+                        let cssCircle = 'bg-slate-50 border-slate-300 text-slate-500';
+                        let lockClass = isVisualLocked ? 'locked cursor-default opacity-80' : 'cursor-pointer hover:bg-slate-50';
+
+                        if (isSelected && !hideResp) {
+                            cssRow = 'bg-indigo-50/50 border-indigo-400 ring-1 ring-indigo-400';
+                            cssCircle = 'bg-indigo-600 border-indigo-600 text-white';
+                        }
+
+                        const txtAlternativa = Utils.highlightText(q.alternativas[letra], termoBusca);
+
+                        alternativasHtml += `
+                            <div id="opt-${q.id_unica}-${letra}" onclick="AppLogic.selecionarAlternativa('${q.id_unica}', '${letra}')" class="alt-row flex items-start gap-4 p-4 border rounded-xl mb-2 ${lockClass} ${cssRow}">
+                                <div class="w-6 h-6 rounded-full border flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5 transition-colors ${cssCircle}">${letra}</div>
+                                <div class="text-slate-700 text-sm leading-relaxed pt-0.5">${txtAlternativa}</div>
+                            </div>
+                        `;
+                    });
+
+                    const favIconClass = q.favorita ? 'active text-amber-500' : 'text-slate-300 hover:text-amber-400';
+                    
+                    let dStr = (q.dificuldade || 'Média').toLowerCase();
+                    let catDificuldade = "Média";
+                    if(dStr.includes('fácil') || dStr.includes('facil')) catDificuldade = "Fácil";
+                    if(dStr.includes('difícil') || dStr.includes('dificil') || dStr.includes('hard')) catDificuldade = "Difícil";
+
+                    let fStr = (q.formato || '').toLowerCase();
+                    let catFormato = "Factual";
+                    if(fStr.includes('caso')) catFormato = "Caso Clínico";
+                    if(fStr.includes('proposi') || fStr.includes('i, ii')) catFormato = "Proposição";
+
+                    const cadernoPai = AppState.bancoDeCadernos.find(c => c.id === q.caderno_id);
+                    let infoBadge = '';
+                    if(cadernoPai) {
+                        if(cadernoPai.isSimulado && q.caderno_origem_id) {
+                            const infoV = cadernoPai.virtuais_info[q.caderno_origem_id];
+                            infoBadge += `Origem: ${infoV || 'Ficha'}`;
+                        } else {
+                            if(cadernoPai.materia) infoBadge += `Matéria: ${cadernoPai.materia} | `;
+                            infoBadge += `Assunto: ${cadernoPai.assuntos}`;
+                        }
+                    }
+
+                    let statusBadge = `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Pendente</span>`;
+                    if(q.respondido) {
+                        if (hideResp) {
+                            statusBadge = `<span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider cursor-help" title="Concluída (Modo Oculto Ativo)">Respondida</span>`;
+                        } else if(q.correto) {
+                            statusBadge = `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Correta</span>`;
+                        } else {
+                            statusBadge = `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Incorreta</span>`;
+                        }
+                    }
+
+                    let historyHTML = '';
+                    if(q.historico && q.historico.length > 0) {
+                        const acertos = q.historico.filter(x => x).length;
+                        const erros = q.historico.length - acertos;
+                        historyHTML = `<span title="Feita ${q.historico.length}x: ${acertos} Acertos, ${erros} Erros" class="cursor-help bg-slate-100 text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider hover:bg-slate-200 transition border border-slate-200">↻ Histórico</span>`;
+                    }
+
+                    const qCard = document.createElement('div');
+                    qCard.id = `card-${q.id_unica}`;
+                    qCard.className = `bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 flex flex-col q-card`;
+
+                    qCard.innerHTML = `
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="flex flex-col gap-2 w-full pr-4">
+                                <div class="flex flex-wrap items-center gap-2" id="badge-container-${q.id_unica}">
+                                    ${statusBadge}
+                                    ${historyHTML}
+                                    <span class="badge-formato text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 px-2 py-0.5 rounded">${catFormato}</span>
+                                    <span class="badge-dificuldade text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 px-2 py-0.5 rounded">${catDificuldade}</span>
+                                </div>
+                                <span class="text-sm font-extrabold text-slate-800 mt-1">Questão ${indexNumber + 1} <span class="text-[10px] text-slate-400 font-normal ml-1 border-l border-slate-300 pl-2">Original #${q.numero_original}<span class="badge-assunto"> | ${infoBadge}</span></span></span>
+                            </div>
+                            
+                            <div class="flex items-center gap-2.5 bg-slate-50 p-1.5 rounded-lg border border-slate-100 shrink-0">
+                                <button onclick="UI.toggleModal('displayModal')" class="text-slate-400 hover:text-indigo-600 transition p-1 rounded hover:bg-white" title="Ajustes Visuais Globais">
+                                    <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                </button>
+                                <button onclick="UI.toggleModal('filterModal')" class="text-slate-400 hover:text-indigo-600 transition p-1 rounded hover:bg-white border-r border-slate-200 pr-3" title="Filtrar Visíveis Globais">
+                                    <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                                </button>
+                                <button onclick="AppLogic.toggleFavorita('${q.id_unica}')" class="text-[20px] focus:outline-none favorite-btn ${favIconClass} pl-1" title="Favoritar">★</button>
+                            </div>
+                        </div>
+
+                        <div class="q-body-wrapper transition-all duration-300">
+                            <div class="text-slate-800 text-[15px] leading-loose mb-6 q-enunciado">${txtEnunciado}</div>
+                            <div class="q-proposicoes">${proposicoesHtml}</div>
+                            <div class="q-min-overlay hidden absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none items-end justify-center pb-2"></div>
+                        </div>
+                        
+                        <button onclick="UI.toggleMinimizarQuestao('${q.id_unica}')" class="expand-arrow hidden w-full py-3 mt-1 flex-col items-center justify-center text-slate-400 hover:text-indigo-600 transition bg-slate-50 hover:bg-indigo-50 rounded-lg border border-slate-100 border-dashed cursor-pointer">
+                            <span class="text-[10px] font-bold uppercase tracking-wider mb-1">Questão Minimizada (Clique para Expandir)</span>
+                            <svg class="w-4 h-4 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                        </button>
+                        
+                        <div class="flex flex-col mt-2 q-alternativas" id="opts-container-${q.id_unica}">
+                            ${alternativasHtml}
+                        </div>
+                        
+                        <div class="mt-6 pt-5 border-t border-slate-100 flex flex-col gap-4 q-actions-bottom">
+                            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div id="feedback-${q.id_unica}" class="w-full md:w-auto font-bold text-sm ${q.respondido && !hideResp ? '' : 'hidden'}"></div>
+                                <div class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                                    <button onclick="AppLogic.responderQuestao('${q.id_unica}')" id="btn-responder-${q.id_unica}" class="${q.respondido ? 'hidden' : ''} bg-slate-800 hover:bg-slate-700 text-white font-semibold px-6 py-2.5 rounded-lg text-xs transition cursor-pointer">Responder</button>
+                                    
+                                    <button onclick="AppLogic.refazerQuestao('${q.id_unica}')" id="btn-refazer-${q.id_unica}" class="${q.respondido ? '' : 'hidden'} text-slate-500 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 font-semibold px-3 py-2.5 rounded-lg text-xs transition shadow-sm cursor-pointer" title="Limpar e refazer questão">
+                                        ↻ Refazer
+                                    </button>
+                                    <button onclick="UI.toggleCustomPrompt('${q.id_unica}')" id="btn-custom-prompt-${q.id_unica}" class="${q.respondido ? '' : 'hidden'} text-slate-500 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 font-semibold px-3 py-2.5 rounded-lg text-xs transition shadow-sm cursor-pointer" title="Fazer pergunta customizada">
+                                        ✨ Pedir Análise Customizada
+                                    </button>
+                                    <button onclick="AI.pedirComentarioIA('${q.id_unica}')" id="btn-comentario-${q.id_unica}" class="${q.respondido ? '' : 'hidden'} bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2.5 rounded-lg text-xs transition shadow-sm flex items-center gap-2 cursor-pointer">
+                                        <span>Ver Comentário</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="custom-prompt-box-${q.id_unica}" class="hidden flex gap-2 w-full bg-slate-50 p-2 rounded-lg border border-slate-200">
+                                <input type="text" id="custom-input-${q.id_unica}" placeholder="Ex: Explique focando no tratamento da criança..." class="w-full bg-white border border-slate-200 rounded p-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <button onclick="AI.pedirComentarioIA('${q.id_unica}', true)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-xs font-bold transition">Enviar</button>
+                            </div>
+                            
+                            <div class="q-collapse-btn flex justify-center mt-2 w-full">
+                                <button onclick="UI.toggleMinimizarQuestao('${q.id_unica}')" class="text-slate-300 hover:text-indigo-500 transition p-1.5 bg-slate-50 hover:bg-indigo-50 rounded-full border border-slate-100" title="Recolher Questão">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="ai-box-${q.id_unica}" class="${q.explicacao_cega ? '' : 'hidden'} mt-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col text-sm overflow-hidden transition-all">
+                            <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 bg-white">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-base">🧠</span>
+                                    <span class="font-bold text-slate-800 tracking-wider text-xs uppercase">Análise do Tutor IA</span>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button onclick="UI.toggleMinimizeComentario('${q.id_unica}')" class="text-slate-400 hover:text-indigo-600 px-2 py-1 hover:bg-slate-50 rounded transition" title="Minimizar/Expandir">
+                                        <span id="chevron-comentario-${q.id_unica}" class="block transform transition-transform duration-200 ${q.comentario_minimizado ? 'rotate-180' : ''}">▼</span>
+                                    </button>
+                                    <button onclick="AppLogic.excluirComentario('${q.id_unica}')" class="text-slate-400 hover:text-red-500 px-2 py-1 hover:bg-slate-50 rounded transition" title="Excluir Comentário">🗑️</button>
+                                </div>
+                            </div>
+                            <div id="ai-text-${q.id_unica}" class="p-4 whitespace-pre-line leading-relaxed text-slate-700 ${q.comentario_minimizado ? 'hidden' : ''}">
+                                ${q.explicacao_cega || ''}
+                            </div>
+                            <button onclick="UI.toggleMinimizeComentario('${q.id_unica}')" class="w-full py-2.5 flex items-center justify-center gap-1 text-[9px] font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition uppercase tracking-wider border-t border-slate-200">
+                                <span>${q.comentario_minimizado ? 'Expandir Comentário' : 'Recolher Comentário'}</span>
+                                <svg id="chevron-comentario-bottom-${q.id_unica}" class="w-4 h-4 transform transition-transform duration-200 ${q.comentario_minimizado ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(qCard);
+                    
+                    if(q.respondido && !hideResp) {
+                        UI.forçarRenderizacaoResposta(q);
+                    }
+                });
+                
+                Dashboard.atualizarDashboard();
+            },
+
+            forçarRenderizacaoResposta(q) {
+                document.getElementById(`btn-responder-${q.id_unica}`)?.classList.add('hidden');
+                document.getElementById(`btn-refazer-${q.id_unica}`)?.classList.remove('hidden');
+                document.getElementById(`btn-comentario-${q.id_unica}`)?.classList.remove('hidden');
+                document.getElementById(`btn-custom-prompt-${q.id_unica}`)?.classList.remove('hidden');
+                
+                const container = document.getElementById(`opts-container-${q.id_unica}`);
+                if(!container) return; 
+
+                container.querySelectorAll('.alt-row').forEach(b => b.classList.add('locked', 'cursor-default', 'opacity-80'));
+
+                const divEscolhida = document.getElementById(`opt-${q.id_unica}-${q.escolha}`);
+                const divCorreta = document.getElementById(`opt-${q.id_unica}-${q.resposta_correta}`);
+                const feedback = document.getElementById(`feedback-${q.id_unica}`);
+                const badgeContainer = document.getElementById(`badge-container-${q.id_unica}`);
+
+                if(badgeContainer) {
+                    badgeContainer.firstElementChild.remove();
+                    const novaBadge = document.createElement('span');
+                    novaBadge.className = q.correto ? 'bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider' : 'bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider';
+                    novaBadge.innerText = q.correto ? 'Correta' : 'Incorreta';
+                    badgeContainer.prepend(novaBadge);
+                }
+
+                feedback.classList.remove('hidden');
+
+                if(q.escolha === q.resposta_correta) {
+                    if(divEscolhida) {
+                        divEscolhida.classList.replace('border-indigo-400', 'border-emerald-500');
+                        divEscolhida.classList.replace('ring-indigo-400', 'ring-emerald-500');
+                        divEscolhida.classList.replace('bg-indigo-50/50', 'bg-emerald-50');
+                        divEscolhida.querySelector('div').classList.replace('bg-indigo-600', 'bg-emerald-500');
+                        divEscolhida.querySelector('div').classList.replace('border-indigo-600', 'border-emerald-500');
+                    }
+                    feedback.innerHTML = "✓ Resposta Correta!";
+                    feedback.className = "w-full md:w-auto font-bold text-sm text-emerald-600 flex items-center";
+                } else {
+                    if(divEscolhida) {
+                        divEscolhida.classList.replace('border-indigo-400', 'border-rose-500');
+                        divEscolhida.classList.replace('ring-indigo-400', 'ring-rose-500');
+                        divEscolhida.classList.replace('bg-indigo-50/50', 'bg-rose-50');
+                        divEscolhida.querySelector('div').classList.replace('bg-indigo-600', 'bg-rose-500');
+                        divEscolhida.querySelector('div').classList.replace('border-indigo-600', 'border-rose-500');
+                    }
+                    if(divCorreta) {
+                        divCorreta.classList.replace('border-slate-200', 'border-emerald-500');
+                        divCorreta.classList.replace('bg-white', 'bg-emerald-50');
+                        divCorreta.classList.add('ring-1', 'ring-emerald-500');
+                        divCorreta.querySelector('div').classList.replace('bg-slate-50', 'bg-emerald-500');
+                        divCorreta.querySelector('div').classList.replace('border-slate-300', 'border-emerald-500');
+                        divCorreta.querySelector('div').classList.replace('text-slate-500', 'text-white');
+                    }
+                    feedback.innerHTML = `✗ Incorreto. Gabarito: ${q.resposta_correta}`;
+                    feedback.className = "w-full md:w-auto font-bold text-sm text-rose-600 flex items-center";
+                }
+            }
+        };
+
+        // --- 10. INTEGRAÇÃO COM INTELIGÊNCIA ARTIFICIAL ---
+        const AI = {
+            cancelarProcessamento() {
+                if(AppState.currentAbortController) {
+                    AppState.currentAbortController.abort();
+                }
+            },
+
+            async fetchComRetry(url, options, retries = Config.API_RETRIES) {
+                for(let i = 0; i < retries; i++) {
+                    try {
+                        const response = await fetch(url, options);
+                        if(response.ok) return response;
+                    } catch(e) { 
+                        if(e.name === 'AbortError') throw e; 
+                        if(i === retries - 1) throw e; 
+                    }
+                    await Utils.sleep(Config.API_RETRY_DELAY); 
+                }
+                throw new Error('Falha de rede após múltiplas tentativas.');
+            },
+
+            processarJSONManual() {
+                const inputText = document.getElementById('jsonManualInput').value.trim();
+                if (!inputText) return UI.showError("Atenção", "Por favor, cole a resposta gerada pela IA na caixa correspondente.");
+
+                try {
+                    let jsonLimpo = Parser.tentarCorrigirJSON(inputText);
+                    jsonLimpo = Parser.limparRespostaJSON(jsonLimpo);
+                    
+                    const arrayBruto = JSON.parse(jsonLimpo);
+                    Parser.validarEstrutura(arrayBruto);
+
+                    const materia = document.getElementById('materia').value.trim() || 'Modo Manual';
+                    const assuntos = document.getElementById('assuntos').value.trim() || 'Assuntos Diversos';
+                    
+                    const novoCadernoId = `cad_${Date.now()}`;
+                    const dataAtual = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+                    
+                    let questoesProcessadas = [];
+                    arrayBruto.forEach((qBruta, index) => {
+                        if (!qBruta.enunciado && !qBruta.enunciated) return; 
+                        if (!qBruta.resposta_correta && qBruta.gabarito) qBruta.resposta_correta = qBruta.gabarito;
+                        if (!qBruta.resposta_correta) return;
+                        questoesProcessadas.push(Parser.normalizarQuestao(qBruta, index, novoCadernoId));
+                    });
+
+                    if(questoesProcessadas.length === 0) throw new Error("Não foi possível extrair nenhuma questão válida.");
+
+                    const novoCaderno = { id: novoCadernoId, isSimulado: false, data_hora: dataAtual, materia: materia, assuntos: assuntos, questoes: questoesProcessadas };
+                    AppState.bancoDeCadernos.push(novoCaderno);
+                    Storage.salvarBanco({cadernoId: novoCadernoId});
+                    
+                    AppLogic.selecionarUnicoCaderno(novoCadernoId);
+                    UI.toggleModal('manualModal');
+                    
+                    alert(`Sucesso! ${questoesProcessadas.length} questões foram importadas para a sua mesa.`);
+                } catch (error) {
+                    console.error(error);
+                    UI.showError("Erro no Processamento", "Ocorreu um erro ao ler o JSON gerado.\n\n" + error.message);
+                }
+            },
+
+            async gerarSimulado() {
+                const motor = document.getElementById('prefMotorGeracao').value || 'gemini';
+                const claudeKey = document.getElementById('claudeKey').value.trim();
+                const geminiKey = document.getElementById('geminiKey').value.trim();
+                
+                const materia = document.getElementById('materia').value.trim();
+                const assuntos = document.getElementById('assuntos').value.trim();
+                const periodo = document.getElementById('periodoAcademico').value;
+                const qtd = document.getElementById('qtdQuestoes').value;
+
+                if(motor === 'claude' && !claudeKey) return UI.showError("Falta a Chave API", "Insira a API Key do Claude nas configurações.");
+                if(motor === 'gemini' && !geminiKey) return UI.showError("Falta a Chave API", "Insira a API Key do Gemini nas configurações.");
+                if(!assuntos) return UI.showError("Atenção", "Preencha o campo obrigatório de Assuntos.");
+
+                const DOMINIO_ALTERNATIVO_PARAM = AppState.modoAlternativo ? `
+
+--- MODO DOMÍNIO ALTERNATIVO ATIVO ---
+O assunto fornecido NÃO É MÉDICO. Você deve entrar automaticamente no Modo Domínio Alternativo:
+- Substitua TODA terminologia médica pelo equivalente do domínio em questão:
+  * "Caso clínico" → "cenário narrativo"
+  * "Anamnese" → "contextualização do problema"
+  * "Diagnóstico" → "identificação/conclusão"
+  * "Conduta" → "decisão/ação"
+  * "Distrator clínico" → "alternativa tecnicamente plausível dentro do universo do tema"
+  * Demais termos médicos devem ser substituídos por equivalentes naturais do domínio do assunto dado.
+- O formato das questões (casos/cenários, factuais, proposições) e toda a lógica de qualidade — densidade homogênea, anti-padrões proibidos, dificuldade — PERMANECEM INTACTOS.
+- O rigor e a seriedade são mantidos. Apenas o vocabulário e os exemplos mudam para o universo do tema fornecido.
+- NUNCA misture jargão médico em questões de domínio alternativo.
+- NUNCA mencione períodos acadêmicos de medicina ou contexto de faculdade de medicina.
+` : '';
+
+                const PROMPT_MONOLITO = `A partir de agora, você será o meu Tutor de Inteligência Artificial para revisão ${AppState.modoAlternativo ? 'de qualquer domínio de conhecimento' : `médica. Sou estudante do ${periodo}`} e vamos trabalhar em blocos de questões. Siga rigorosamente as regras abaixo:
+1. Dinâmica: Sempre que eu te der um assunto, você vai gerar a quantidade solicitada (padrão de 10 questões, a menos que eu peça uma quantidade diferente).
+2. Variedade e Equilíbrio de Formato: Distribua as questões de forma proporcional e equilibrada entre os três formatos abaixo, garantindo que nenhum formato domine o bloco sozinho:
+   - Casos clínicos robustos: Extensão média/longa (estilo prova de residência), incluindo obrigatoriamente anamnese, achados de exame físico e exames complementares pertinentes.
+   - Perguntas factuais/diretas: Altamente focadas em critérios diagnósticos, fisiopatologia avançada ou farmacologia clínica (especialmente mecanismos de ação de medicamentos e esquemas de tratamento).
+   - Análise de proposições (I, II, III): Cada proposição deve estar em uma linha separada. Regra de ouro: Monte as opções de resposta (A, B, C...) de modo inteligente e desafiador, evitando que o aluno consiga eliminar a maioria das alternativas sabendo apenas o status de uma única proposição.
+3. Alternativas e Paralelismo: Use entre 4 ou 5 alternativas (A a D ou A a E). Obrigatoriamente, todas as alternativas de uma mesma questão devem iniciar com a mesma classe gramatical (ex: se a alternativa A começa com um verbo no infinitivo, todas as outras devem começar com verbo no infinitivo; se uma começa com um substantivo, todas começam com substantivo).
+4. Proporção de Dificuldade: Mescle níveis fácil e médio, mantendo uma proporção estrita de 10% de questões difíceis no bloco (ou seja, exatamente 1 questão difícil a cada 10 solicitadas). Indique a dificuldade no JSON.
+5. Gabarito: Guarde no backend estruturado no JSON.
+6. Randomização Real: A distribuição das alternativas corretas deve ser estatisticamente aleatória. Não tente evitar sequências repetidas. O objetivo é que a ordem das respostas seja imprevisível.
+7. Sigilo: Nunca coloque a resposta no título, logo após a questão ou em negrito no corpo das alternativas.
+8. Homogeneidade Sintática e Densidade dos Distratores (Anti-Dica):
+Todas as alternativas devem ter tamanho visual e contagem de palavras equivalentes (margem de erro de no máximo 10%). Se a correta tem duas linhas explicando um mecanismo, todas as incorretas devem ter duas linhas explicando um mecanismo falso com a mesma propriedade técnica.
+Os distratores devem ser construídos com o mesmo nível de jargão, riqueza de detalhes e clareza que a correta. É proibido que a correta seja a única sintaticamente coesa, tecnicamente detalhada ou semanticamente completa.
+Construa os distratores usando: mecanismos parcialmente corretos, confusões comuns entre classes/técnicas, condutas certas para diagnósticos errados, ou interpretações incompletas mas convincentes — nunca afirmações vagas ou caricatas.
+Antes de finalizar, aplique o teste: "Um leigo conseguiria eliminar alguma alternativa apenas pela qualidade do texto?" Se sim, reescreva.
+9. Anti-Padrões Proibidos: A correta não pode ser sistematicamente: a mais longa, a mais técnica, a única coesa, a única com mecanismo explicado, ou a mais equilibrada. A distribuição de qualidade textual entre todas as alternativas deve ser homogênea e indistinguível.`;
+
+                let promptModificadores = `\n\n--- PARÂMETROS DO CADERNO ---\n`;
+                promptModificadores += DOMINIO_ALTERNATIVO_PARAM;
+                if(materia) promptModificadores += `Matéria: "${materia}"\n`;
+                promptModificadores += `Tópicos: "${assuntos}"\nQtd: ${qtd} itens.\n`;
+                
+                const altSel = document.getElementById('filtroAlternativas').value;
+                const formSel = document.getElementById('filtroFormato').value;
+                const difSel = document.getElementById('filtroDificuldade').value;
+                const instrucoesCustom = document.getElementById('instrucoesCustom').value.trim();
+
+                if(altSel !== 'variado') promptModificadores += `Force exatamente ${altSel} opções.\n`;
+                if(formSel !== 'equilibrado') promptModificadores += `Force APENAS formato: ${formSel}.\n`;
+
+                if(difSel === 'hardcore') promptModificadores += `Dificuldade: Apenas níveis Média e Difícil.\n`;
+                else if(difSel === 'expert') promptModificadores += `Dificuldade: 100% Nível Especialista.\n`;
+
+                if(instrucoesCustom) promptModificadores += `\nINSTRUÇÕES ADICIONAIS DO ESTUDANTE:\n${instrucoesCustom}\n`;
+
+                if(motor === 'manual') {
+                    let promptManual = PROMPT_MONOLITO + promptModificadores + `\n\nCRÍTICO: Retorne APENAS um array JSON válido e nada mais. Você está se comunicando com uma API de parser de código, não com um humano. Não inclua mensagens de saudação, não coloque formatação markdown (sem \`\`\`json no início ou \`\`\` no final). Seu primeiro caractere digitado deve ser '[' e o último deve ser ']'. Estrutura exigida para cada objeto: [{"numero": 1, "dificuldade": "Média", "formato": "Caso Clínico", "enunciado": "...", "proposicoes": [], "alternativas": {"A": "..."}, "resposta_correta": "A"}]`;
+                    
+                    document.getElementById('promptManualText').value = promptManual;
+                    document.getElementById('jsonManualInput').value = '';
+                    UI.toggleModal('gerarModal'); 
+                    UI.toggleModal('manualModal'); 
+                    return; 
+                }
+
+                promptModificadores += `\nRETORNE ESTRITAMENTE JSON (Array de objetos limpo):\n[{"numero": 1, "dificuldade": "Média", "formato": "Caso Clínico", "enunciado": "...", "proposicoes": [], "alternativas": {"A": "..."}, "resposta_correta": "A"}]`;
+
+                document.getElementById('gerarModal').classList.add('hidden'); 
+                document.getElementById('welcomeState').classList.add('hidden');
+                document.getElementById('dashboardDesempenhoWrapper').classList.add('hidden');
+                document.getElementById('filterBar').classList.add('hidden');
+                document.getElementById('questionsContainer').innerHTML = '';
+                document.getElementById('statsHeader').classList.add('hidden');
+                document.getElementById('loading').classList.remove('hidden');
+
+                document.getElementById('loadingIcon').innerText = motor === 'claude' ? '🧠' : '✨';
+                
+                const pipelineStatuses = [ "Configurando ambiente...", "Acessando diretrizes...", "Estruturando os casos...", "Calibrando distratores...", "Finalizando compilação..." ];
+                let statusIndex = 0;
+                const statusEl = document.getElementById('pipelineStatus');
+                statusEl.innerText = "Conectando à API...";
+                AppState.pipelineInterval = setInterval(() => {
+                    if(statusIndex < pipelineStatuses.length) { statusEl.innerText = pipelineStatuses[statusIndex]; statusIndex++; }
+                }, 2500);
+
+                AppState.currentAbortController = new AbortController();
+                const signal = AppState.currentAbortController.signal;
+
+                try {
+                    let rawText = "";
+                    if(motor === 'claude') {
+                        const selModel = document.getElementById('claudeModel').value || 'claude-sonnet-4-6';
+                        const response = await AI.fetchComRetry('https://api.anthropic.com/v1/messages', {
+                            method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': claudeKey, 'anthropic-version': '2023-06-01', 'dangerously-allow-browser': 'true' },
+                            body: JSON.stringify({ model: selModel, max_tokens: 4000, messages: [{ role: 'user', content: PROMPT_MONOLITO + promptModificadores }] }),
+                            signal: signal
+                        });
+                        rawText = (await response.json()).content[0].text;
+                    } else {
+                        const selModel = document.getElementById('geminiModel').value || 'gemini-3-flash-preview';
+                        const response = await AI.fetchComRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selModel}:generateContent?key=${geminiKey}`, {
+                            method: 'POST', headers: { 'content-type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: PROMPT_MONOLITO + promptModificadores }] }], generationConfig: { responseMimeType: "application/json" } }),
+                            signal: signal
+                        });
+                        rawText = (await response.json()).candidates[0].content.parts[0].text;
+                    }
+                    
+                    clearInterval(AppState.pipelineInterval);
+                    statusEl.innerText = "Processando arquivo...";
+
+                    let jsonLimpo = Parser.tentarCorrigirJSON(rawText);
+                    jsonLimpo = Parser.limparRespostaJSON(jsonLimpo);
+                    
+                    const arrayBruto = JSON.parse(jsonLimpo);
+                    Parser.validarEstrutura(arrayBruto);
+
+                    const novoCadernoId = `cad_${Date.now()}`;
+                    const dataAtual = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+                    
+                    let questoesProcessadas = [];
+                    arrayBruto.forEach((qBruta, index) => {
+                        if(!qBruta.enunciado || !qBruta.resposta_correta) return; 
+                        questoesProcessadas.push(Parser.normalizarQuestao(qBruta, index, novoCadernoId));
+                    });
+
+                    if(questoesProcessadas.length === 0) throw new Error("Falha na extração de itens. Resposta vazia após limpeza.");
+
+                    const novoCaderno = { id: novoCadernoId, isSimulado: false, data_hora: dataAtual, materia: materia, assuntos: assuntos, questoes: questoesProcessadas };
+                    AppState.bancoDeCadernos.push(novoCaderno);
+                    Storage.salvarBanco({cadernoId: novoCadernoId});
+                    
+                    AppLogic.selecionarUnicoCaderno(novoCadernoId);
+
+                } catch (error) {
+                    clearInterval(AppState.pipelineInterval);
+                    if (error.name === 'AbortError') {
+                        // Silently abort
+                    } else {
+                        UI.showError("Erro na Geração", `A IA retornou um formato inesperado.\nPossíveis Causas:\n- Timeout da API\n- Markdown excessivo na resposta\n\nDetalhes:\n${error.message}`);
+                    }
+                    if (AppState.bancoDeCadernos.length === 0) {
+                        document.getElementById('welcomeState').classList.remove('hidden');
+                    } else {
+                        UI.atualizarVisaoQuestoes(); 
+                    }
+                } finally {
+                    clearInterval(AppState.pipelineInterval);
+                    document.getElementById('loading').classList.add('hidden');
+                    AppState.currentAbortController = null;
+                }
+            },
+
+            gerarSimuladoDaMochila() {
+                const questoesParaSimulado = Filters.obterQuestoesFiltradas();
+                if(questoesParaSimulado.length === 0) return UI.showError("Aviso", "Não há questões visíveis para gerar um simulado.");
+                
+                const nomeSimulado = prompt("Qual será o nome deste Simulado?", "Simulado Global - Revisão");
+                if(nomeSimulado === null) return; 
+                
+                const confirmacao = confirm(`Deseja criar a prova "${nomeSimulado}" com estas ${questoesParaSimulado.length} questões limpas? (O progresso nos seus cadernos de estudo será preservado)`);
+                if(!confirmacao) return;
+
+                const simId = `sim_${Date.now()}`;
+                
+                let ordem_virtuais = [];
+                let virtuais_info = {};
+
+                questoesParaSimulado.forEach(q => {
+                    let origId = q.caderno_origem_id || q.caderno_id; 
+                    if(!ordem_virtuais.includes(origId)) {
+                        ordem_virtuais.push(origId);
+                        const cOrig = AppState.bancoDeCadernos.find(c => c.id === origId);
+                        virtuais_info[origId] = cOrig ? (cOrig.materia ? `${cOrig.assuntos} - ${cOrig.materia}` : cOrig.assuntos) : "Questões Extras";
+                    }
+                });
+
+                const clonedQuestions = questoesParaSimulado.map((q, idx) => {
+                    let novoId = `q_sim_${Date.now()}_${idx}`;
+                    return {
+                        ...JSON.parse(JSON.stringify(q)), 
+                        id_unica: novoId,
+                        caderno_id: simId,
+                        caderno_origem_id: q.caderno_origem_id || q.caderno_id, 
+                        respondido: false,
+                        escolha: null,
+                        correto: false,
+                        historico: [],
+                        comentario_minimizado: true,
+                        oculta_revisao: false
+                    };
+                });
+
+                clonedQuestions.sort(() => Math.random() - 0.5);
+                clonedQuestions.forEach((q, i) => q.numero_original = i + 1);
+
+                const novoCaderno = {
+                    id: simId,
+                    isSimulado: true,
+                    ordem_virtuais: ordem_virtuais,
+                    virtuais_info: virtuais_info,
+                    data_hora: new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
+                    materia: 'Simulado',
+                    assuntos: nomeSimulado,
+                    questoes: clonedQuestions
+                };
+                
+                AppState.bancoDeCadernos.push(novoCaderno);
+                Storage.salvarBanco({cadernoId: simId});
+                AppLogic.selecionarUnicoCaderno(simId);
+                UI.togglePainelFiltros();
+                alert("Simulado gerado com sucesso! A sua prova está pronta para ser resolvida.");
+            },
+
+            async pedirComentarioIA(idUnica, isCustom = false) {
+                const motor = document.getElementById('prefMotorResposta').value || 'gemini';
+                const claudeKey = document.getElementById('claudeKey').value.trim();
+                const geminiKey = document.getElementById('geminiKey').value.trim();
+                
+                if(motor === 'claude' && !claudeKey) return UI.showError("Aviso", "Configure a Chave da API do Claude.");
+                if(motor === 'gemini' && !geminiKey) return UI.showError("Aviso", "Configure a Chave da API do Gemini.");
+                
+                let qDado = AppLogic.getQuestao(idUnica);
+                if(!qDado) return UI.showError("Aviso", "Questão não encontrada.");
+                
+                let customInput = "";
+                if (isCustom) {
+                    const customInputEl = document.getElementById(`custom-input-${idUnica}`);
+                    customInput = customInputEl ? customInputEl.value.trim() : "";
+                    if(!customInput) return UI.showError("Aviso", "Digite a sua dúvida na caixa de texto antes de enviar.");
+                }
+
+                const box = document.getElementById(`ai-box-${idUnica}`);
+                const textTarget = document.getElementById(`ai-text-${idUnica}`);
+                const chevron = document.getElementById(`chevron-comentario-${idUnica}`);
+                const bottomChevron = document.getElementById(`chevron-comentario-bottom-${idUnica}`);
+                if(!box || !textTarget) return UI.showError("Aviso", "Área de comentário não encontrada. Reabra a questão e tente novamente.");
+                
+                qDado.comentario_minimizado = false;
+                chevron?.classList.remove('rotate-180');
+                bottomChevron?.classList.remove('rotate-180');
+                const bottomLabel = bottomChevron?.parentElement?.querySelector('span');
+                if(bottomLabel) bottomLabel.innerText = 'Recolher Comentário';
+                textTarget.classList.remove('hidden');
+
+                box.classList.remove('hidden');
+                textTarget.innerHTML = `<div class="flex items-center gap-2 text-slate-500 animate-pulse text-xs"><div class="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-ping"></div><span>A processar análise (${motor})...</span></div>`;
+
+                let prompt = "";
+                if (isCustom) {
+                    prompt = `O aluno perguntou sobre a questão abaixo: "${customInput}"
+Enunciado: ${qDado.enunciado}
+Alternativas: ${JSON.stringify(qDado.alternativas)}
+Responda à dúvida de forma direta e estritamente médica.`;
+                    document.getElementById(`custom-prompt-box-${idUnica}`)?.classList.add('hidden'); 
+                } else {
+                    prompt = `Analise esta questão (Nível: ${document.getElementById('periodoAcademico').value}). IGNORE o gabarito oficial, atue de forma independente.
+Enunciado: ${qDado.enunciado}
+Alternativas da Questão: ${JSON.stringify(qDado.alternativas)}
+
+Sua resposta DEVE seguir esta estrutura rígida:
+1. Resumo Direto: (Explique brevemente em 3 a 4 linhas por que a alternativa correta é a certa, de forma clara e objetiva para uma revisão rápida).
+2. Análise Profunda da Correta: (Aponte a letra correta e justifique fisiopatologicamente a escolha).
+3. Por que as outras estão incorretas: (Disseque rapidamente o erro das outras letras).
+4. Ponto Chave: (2 bullet points vitais sobre o assunto para provas).`;
+                }
+
+                document.getElementById('loadingTitle').innerText = "O Tutor IA está a pensar...";
+                document.getElementById('pipelineStatus').innerText = "Analisando a questão selecionada...";
+                document.getElementById('loading').classList.remove('hidden');
+
+                AppState.currentAbortController = new AbortController();
+                const signal = AppState.currentAbortController.signal;
+
+                try {
+                    let respText = "";
+                    if(motor === 'claude') {
+                        const selModel = document.getElementById('claudeModel').value || 'claude-sonnet-4-6';
+                        const response = await AI.fetchComRetry('https://api.anthropic.com/v1/messages', {
+                            method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': claudeKey, 'anthropic-version': '2023-06-01', 'dangerously-allow-browser': 'true' },
+                            body: JSON.stringify({ model: selModel, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] }),
+                            signal: signal
+                        });
+                        respText = (await response.json()).content[0].text;
+                    } else {
+                        const selModel = document.getElementById('geminiModel').value || 'gemini-3-flash-preview';
+                        const response = await AI.fetchComRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selModel}:generateContent?key=${geminiKey}`, {
+                            method: 'POST', headers: { 'content-type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+                            signal: signal
+                        });
+                        respText = (await response.json()).candidates[0].content.parts[0].text;
+                    }
+                    
+                    const formattedHtml = respText.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    textTarget.innerHTML = formattedHtml;
+                    qDado.explicacao_cega = formattedHtml;
+                    Storage.salvarBanco({cadernoId: qDado.caderno_id});
+                } catch (error) { 
+                    if (error.name === 'AbortError') {
+                        textTarget.innerHTML = `<span class="text-amber-600 font-semibold text-xs">⚠️ Análise cancelada pelo utilizador.</span>`; 
+                    } else {
+                        textTarget.innerHTML = `<span class="text-rose-600 font-semibold text-xs">⚠️ Falha na API: ${error.message}</span>`; 
+                    }
+                } finally {
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('loadingTitle').innerText = "Gerando Ambiente de Prova...";
+                    AppState.currentAbortController = null;
+                }
+            }
+        };
+
+        // --- 11. INICIALIZAÇÃO ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            const initSettings = () => {
+                if(localStorage.getItem('claude_key')) document.getElementById('claudeKey').value = localStorage.getItem('claude_key');
+                if(localStorage.getItem('gemini_key')) document.getElementById('geminiKey').value = localStorage.getItem('gemini_key');
+                
+                if(localStorage.getItem('claude_model')) document.getElementById('claudeModel').value = localStorage.getItem('claude_model');
+                if(localStorage.getItem('gemini_model')) document.getElementById('geminiModel').value = localStorage.getItem('gemini_model');
+                
+                if(localStorage.getItem('motor_geracao')) {
+                    document.getElementById('prefMotorGeracao').value = localStorage.getItem('motor_geracao');
+                    UI.selecionarMotor(localStorage.getItem('motor_geracao') || 'gemini');
+                }
+                if(localStorage.getItem('motor_resposta')) document.getElementById('prefMotorResposta').value = localStorage.getItem('motor_resposta');
+
+                const prefs = JSON.parse(localStorage.getItem('medq_prefs') || '{"dif":true, "form":true, "assunto":true}');
+                document.getElementById('prefDif').checked = prefs.dif;
+                document.getElementById('prefForm').checked = prefs.form;
+                document.getElementById('prefAssunto').checked = prefs.assunto;
+                UI.aplicarClassesBody(prefs);
+            };
+
+            initSettings();
+            
+            try {
+                let dados = await Storage.loadFromDB('banco_med_pro');
+                
+                if (!dados && localStorage.getItem('banco_med_pro')) {
+                    dados = JSON.parse(localStorage.getItem('banco_med_pro'));
+                    await Storage.saveToDB('banco_med_pro', dados);
+                    localStorage.removeItem('banco_med_pro'); 
+                }
+
+                if(dados) {
+                    if(Array.isArray(dados)) {
+                        AppState.bancoDeCadernos = dados;
+                        AppState.mochilasDePastas = [];
+                    } else {
+                        AppState.bancoDeCadernos = dados.cadernos || [];
+                        AppState.mochilasDePastas = dados.mochilas || [];
+                    }
+                    
+                    AppState.bancoDeCadernos.forEach(c => {
+                        c.questoes.forEach(q => { 
+                            q.comentario_minimizado = true; 
+                            q.oculta_revisao = false;
+                            if (!Array.isArray(q.historico)) {
+                                q.historico = q.respondido ? [q.correto] : [];
+                            }
+                        });
+                    });
+                    
+                    UI.atualizarUIBanco();
+                    
+                    if(AppState.bancoDeCadernos.length > 0) {
+                        AppState.selectedCadernos = [];
+                        UI.atualizarVisaoQuestoes();
+                    }
+                }
+            } catch(e) { 
+                console.error("Erro ao ler banco local", e); 
+            }
+            
+            UI.atualizarBotaoGerar();
+            Cloud.init(); 
+
+            document.addEventListener('click', (event) => {
+                const containerCad = document.getElementById('dropdownCadernosContainer');
+                if (containerCad && !containerCad.contains(event.target)) {
+                    document.getElementById('listCadernosDropdown').classList.add('hidden');
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
