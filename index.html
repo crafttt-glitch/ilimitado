@@ -48,6 +48,8 @@
         .drag-item.drag-over { background-color: #eef2ff; border-color: #6366f1; }
 
         #logoMed { transition: max-width 0.45s cubic-bezier(.4,0,.2,1), opacity 0.35s ease, transform 0.45s ease; overflow: visible !important; }
+        .cfg-tab-active { background: #eef2ff; color: #4338ca; }
+        .cfg-tab-btn { transition: background 0.2s, color 0.2s; }
         #logoRoom { transition: color 0.4s ease, transform 0.45s ease; }
         #logoEasterBtn { transition: transform 0.5s ease, background-color 0.3s ease, border-color 0.3s ease; }
 
@@ -95,81 +97,177 @@
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
+    <!-- Modal: Sem API Key -->
+    <div id="noApiModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex justify-center items-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-sm mx-4 rounded-2xl shadow-2xl transform scale-95 transition-transform duration-300 overflow-hidden" id="noApiModalContent">
+            <div class="bg-gradient-to-br from-rose-50 to-orange-50 px-6 pt-6 pb-4 flex flex-col items-center text-center gap-3">
+                <div class="w-14 h-14 bg-white rounded-2xl shadow-sm border border-rose-100 flex items-center justify-center text-3xl">🔑</div>
+                <div>
+                    <h3 class="font-extrabold text-slate-800 text-base" id="noApiTitle">Chave API não configurada</h3>
+                    <p class="text-slate-500 text-[11px] mt-1 leading-relaxed" id="noApiDesc">Para gerar cadernos com este motor, você precisa de uma API Key.</p>
+                </div>
+            </div>
+            <div class="px-6 py-5 flex flex-col gap-3">
+                <button id="noApiBtnTutorial" onclick="UI.noApiGoTutorial()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2">
+                    📖 Ver como configurar
+                </button>
+                <button onclick="UI.noApiGoManual()" class="w-full bg-white hover:bg-slate-50 text-slate-700 border-2 border-slate-200 hover:border-slate-300 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2">
+                    📋 Usar Modo Manual (sem API)
+                </button>
+                <button onclick="UI.toggleModal('noApiModal')" class="w-full text-slate-400 hover:text-slate-600 text-xs font-semibold py-1.5 transition">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="apiModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center opacity-0 transition-opacity duration-300">
-        <div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar" id="apiModalContent">
-            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
-                <h3 class="font-bold text-lg text-slate-800">Configurações e Nuvem</h3>
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col" id="apiModalContent">
+
+            <!-- Header fixo -->
+            <div class="flex justify-between items-center px-6 pt-5 pb-3 border-b border-slate-100 shrink-0">
+                <h3 class="font-bold text-lg text-slate-800">⚙️ Configurações</h3>
                 <button onclick="UI.toggleModal('apiModal')" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button>
             </div>
-            
-            <div class="flex flex-col gap-5">
-                
-                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
-                    <div class="flex items-center justify-between">
-                        <span class="text-indigo-800 font-extrabold text-[11px] uppercase tracking-wider flex items-center gap-1.5">☁️ Nuvem / Firebase</span>
-                        <span id="fbStatus" class="bg-slate-200 text-slate-500 text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Desconectado</span>
+
+            <!-- Abas -->
+            <div class="flex gap-1 px-6 pt-3 shrink-0">
+                <button id="cfgTabBtn" onclick="UI.switchCfgTab('config')" class="cfg-tab-btn cfg-tab-active flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition">🔑 Chaves & Nuvem</button>
+                <button id="tutTabBtn" onclick="UI.switchCfgTab('tutorial')" class="cfg-tab-btn flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition text-slate-500 hover:bg-slate-100">📖 Como configurar</button>
+            </div>
+
+            <!-- Conteúdo rolável -->
+            <div class="overflow-y-auto custom-scrollbar flex-1 px-6 pb-6 pt-4">
+
+                <!-- ABA: CONFIG -->
+                <div id="cfgTabConfig" class="flex flex-col gap-5">
+                    <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-indigo-800 font-extrabold text-[11px] uppercase tracking-wider flex items-center gap-1.5">☁️ Nuvem / Firebase</span>
+                            <span id="fbStatus" class="bg-slate-200 text-slate-500 text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Desconectado</span>
+                        </div>
+                        <p class="text-[10px] text-indigo-700 leading-relaxed font-medium">Cole a variável <b>firebaseConfig</b> abaixo para sincronizar seu estudo entre todos os dispositivos, sem custo.</p>
+                        <textarea id="fbConfigInput" rows="3" placeholder="const firebaseConfig = { apiKey: '...', ... };" class="w-full text-[10px] font-mono p-3 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white resize-none"></textarea>
+                        <button onclick="Cloud.conectarPeloInput()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg transition text-[11px] shadow-sm">Aplicar Chaves Cloud</button>
                     </div>
-                    <p class="text-[10px] text-indigo-700 leading-relaxed font-medium">Cole a variável <b>firebaseConfig</b> abaixo para manter o seu estudo 100% sincronizado (Tempo Real) entre todos os seus dispositivos, sem custos.</p>
-                    <textarea id="fbConfigInput" rows="3" placeholder="const firebaseConfig = { apiKey: '...', ... };" class="w-full text-[10px] font-mono p-3 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white resize-none"></textarea>
-                    <div class="flex gap-2">
-                        <button onclick="Cloud.conectarPeloInput()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg transition text-[11px] shadow-sm">Aplicar Chaves Cloud</button>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                            <span class="text-slate-600 font-bold text-xs uppercase tracking-wider">Claude (Anthropic)</span>
+                            <input type="password" id="claudeKey" placeholder="API Key (sk-ant-...)" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Modelo Claude</label>
+                                <select id="claudeModel" class="w-full text-[11px] px-2 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 bg-white cursor-pointer font-medium text-slate-600">
+                                    <option value="claude-sonnet-4-6">Claude 4.6 Sonnet (Pago / Ideal)</option>
+                                    <option value="claude-opus-4-7">Claude 4.7 Opus (Pago / Mais potente)</option>
+                                    <option value="claude-haiku-4-5-20251001">Claude 4.5 Haiku (Pago / Mais rápido)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                            <span class="text-slate-600 font-bold text-xs uppercase tracking-wider">Gemini (Google)</span>
+                            <input type="password" id="geminiKey" placeholder="API Key (AIzaSy...)" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Modelo Gemini</label>
+                                <select id="geminiModel" class="w-full text-[11px] px-2 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 bg-white cursor-pointer font-medium text-slate-600">
+                                    <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Grátis / Mais rápido)</option>
+                                    <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Grátis / Mais estável)</option>
+                                    <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Pago / Mais potente)</option>
+                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (Pago / Estável e potente)</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="grid grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Motor: Gerar Questões</label>
+                            <select id="prefMotorGeracao" class="w-full bg-white border border-slate-200 px-2 py-2 rounded-lg text-slate-700 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer">
+                                <option value="gemini">Gemini</option>
+                                <option value="claude">Claude</option>
+                                <option value="manual">Modo Manual</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Motor: Respostas</label>
+                            <select id="prefMotorResposta" class="w-full bg-white border border-slate-200 px-2 py-2 rounded-lg text-slate-700 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer">
+                                <option value="gemini" selected>Gemini</option>
+                                <option value="claude">Claude</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="AppLogic.salvarConfiguracoes()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl transition shadow-sm text-sm">Guardar Preferências Locais</button>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-                        <div class="flex items-center gap-2">
-                            <span class="text-slate-600 font-bold text-xs uppercase tracking-wider">Claude (Anthropic)</span>
+                <!-- ABA: TUTORIAL -->
+                <div id="cfgTabTutorial" class="hidden flex flex-col gap-5">
+
+                    <!-- Seção Gemini -->
+                    <div class="flex flex-col gap-3">
+                        <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
+                            <span class="text-xl">✨</span>
+                            <h4 class="font-extrabold text-sm text-slate-800">Como pegar sua API Key do Gemini</h4>
+                            <span class="ml-auto bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Grátis</span>
                         </div>
-                        <div>
-                            <input type="password" id="claudeKey" placeholder="API Key (sk-ant-...)" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+                        <div class="flex flex-col gap-2.5">
+                            <div class="flex gap-3 items-start">
+                                <span class="bg-indigo-100 text-indigo-700 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">1</span>
+                                <p class="text-[11px] text-slate-600 leading-relaxed">Acesse <a href="https://aistudio.google.com/apikey" target="_blank" class="text-indigo-600 font-bold underline hover:text-indigo-800">aistudio.google.com/apikey</a> — faça login com a sua conta Google normalmente.</p>
+                            </div>
+                            <div class="flex gap-3 items-start">
+                                <span class="bg-indigo-100 text-indigo-700 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">2</span>
+                                <p class="text-[11px] text-slate-600 leading-relaxed">Clique no botão azul <b>"Create API key"</b>. Se aparecer uma lista de projetos, escolha qualquer um ou crie um novo.</p>
+                            </div>
+                            <div class="flex gap-3 items-start">
+                                <span class="bg-indigo-100 text-indigo-700 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">3</span>
+                                <p class="text-[11px] text-slate-600 leading-relaxed">A chave gerada começa com <code class="bg-slate-100 px-1 rounded font-mono">AIzaSy...</code>. Copie ela e cole no campo <b>API Key (Gemini)</b> aqui nas configurações.</p>
+                            </div>
+                            <div class="flex gap-3 items-start">
+                                <span class="bg-indigo-100 text-indigo-700 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">4</span>
+                                <p class="text-[11px] text-slate-600 leading-relaxed">Clique em <b>Guardar Preferências</b> e pronto. O uso básico é <b>100% gratuito</b> com os modelos Flash.</p>
+                            </div>
                         </div>
-                        <div>
-                            <label class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Modelo Claude</label>
-                            <select id="claudeModel" class="w-full text-[11px] px-2 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 bg-white cursor-pointer font-medium text-slate-600">
-                                <option value="claude-sonnet-4-6">Claude 4.6 Sonnet (Pago/Ideal)</option>
-                                <option value="claude-opus-4-7">Claude 4.7 Opus (Pago/Parrudo)</option>
-                                <option value="claude-haiku-4-5-20251001">Claude 4.5 Haiku (Pago/Rápido)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-                        <div class="flex items-center gap-2">
-                            <span class="text-slate-600 font-bold text-xs uppercase tracking-wider">Gemini (Google)</span>
-                        </div>
-                        <div>
-                            <input type="password" id="geminiKey" placeholder="API Key (AIzaSy...)" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
-                        </div>
-                        <div>
-                            <label class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Modelo Gemini</label>
-                            <select id="geminiModel" class="w-full text-[11px] px-2 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 bg-white cursor-pointer font-medium text-slate-600">
-                                <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Melhor FREE geral)</option>
-                                <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Melhor FREE estável)</option>
-                                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Melhor PREMIUM)</option>
-                                <option value="gemini-2.5-pro">Gemini 2.5 Pro (Melhor estável premium)</option>
-                            </select>
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-[10px] text-amber-800 leading-relaxed">
+                            💡 <b>Dica:</b> o Gemini 2.5 Flash (padrão) é o recomendado pra começar — rápido, gratuito e muito bom para gerar questões.
                         </div>
                     </div>
+
+                    <!-- Seção Firebase -->
+                    <div class="flex flex-col gap-3">
+                        <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
+                            <span class="text-xl">☁️</span>
+                            <h4 class="font-extrabold text-sm text-slate-800">Como configurar a Nuvem (Firebase)</h4>
+                            <span class="ml-auto bg-sky-100 text-sky-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Opcional · Grátis</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 leading-relaxed">O Firebase sincroniza seus cadernos em tempo real entre celular, tablet e computador. É opcional — sem ele, tudo fica salvo só no navegador atual.</p>
+                        <div class="flex flex-col gap-2.5">
+                            <div class="flex gap-3 items-start">
+                                <span class="bg-sky-100 text-sky-700 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">1</span>
+                                <p class="text-[11px] text-slate-600 leading-relaxed">Acesse <a href="https://console.firebase.google.com" target="_blank" class="text-indigo-600 font-bold underline hover:text-indigo-800">console.firebase.google.com</a> e clique em <b>"Adicionar projeto"</b>. Dê um nome qualquer (ex: <i>med-room</i>), desative o Google Analytics e clique em Criar.</p>
+                            </div>
+                            <div class="flex gap-3 items-start">
+                                <span class="bg-sky-100 text-sky-700 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">2</span>
+                                <p class="text-[11px] text-slate-600 leading-relaxed">Dentro do projeto, clique no ícone <b>&lt;/&gt;</b> (Web) para registrar um app. Dê um apelido qualquer e clique em <b>Registrar app</b>.</p>
+                            </div>
+                            <div class="flex gap-3 items-start">
+                                <span class="bg-sky-100 text-sky-700 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">3</span>
+                                <p class="text-[11px] text-slate-600 leading-relaxed">Vai aparecer um bloco de código com <code class="bg-slate-100 px-1 rounded font-mono">const firebaseConfig = &#123; ... &#125;</code>. Copie <b>esse bloco inteiro</b> e cole na caixa de texto da aba <b>Chaves & Nuvem</b>.</p>
+                            </div>
+                            <div class="flex gap-3 items-start">
+                                <span class="bg-sky-100 text-sky-700 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">4</span>
+                                <p class="text-[11px] text-slate-600 leading-relaxed">No menu lateral do Firebase, vá em <b>Build → Firestore Database</b>, clique em <b>Criar banco de dados</b>, escolha o modo <b>Teste</b> e selecione qualquer região. Confirme.</p>
+                            </div>
+                            <div class="flex gap-3 items-start">
+                                <span class="bg-sky-100 text-sky-700 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">5</span>
+                                <p class="text-[11px] text-slate-600 leading-relaxed">Volte aqui, clique em <b>Aplicar Chaves Cloud</b> e pronto — o indicador vai ficar verde com <b>Conectado</b>.</p>
+                            </div>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-[10px] text-emerald-800 leading-relaxed">
+                            ✅ <b>Plano gratuito do Firebase</b> (Spark) é mais do que suficiente para o uso do Med Room. Não precisa colocar cartão.
+                        </div>
+                    </div>
+
                 </div>
-                
-                <div class="grid grid-cols-2 gap-4 pt-3 border-t border-slate-100">
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Motor: Gerar Questões</label>
-                        <select id="prefMotorGeracao" class="w-full bg-white border border-slate-200 px-2 py-2 rounded-lg text-slate-700 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer">
-                            <option value="gemini">Gemini</option>
-                            <option value="claude">Claude</option>
-                            <option value="manual">Modo Manual</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Motor: Respostas</label>
-                        <select id="prefMotorResposta" class="w-full bg-white border border-slate-200 px-2 py-2 rounded-lg text-slate-700 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer">
-                            <option value="gemini" selected>Gemini</option>
-                            <option value="claude">Claude</option>
-                        </select>
-                    </div>
-                </div>
-                <button onclick="AppLogic.salvarConfiguracoes()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl transition shadow-sm text-sm">Guardar Preferências Locais</button>
             </div>
         </div>
     </div>
@@ -1474,6 +1572,50 @@
                 if(campoMateriaWrapper) campoMateriaWrapper.classList.toggle('hidden', isAlt);
             },
 
+            showNoApiModal(motorName, desc) {
+                // Close the generate modal first
+                const gerarModal = document.getElementById('gerarModal');
+                if(gerarModal && !gerarModal.classList.contains('hidden')) {
+                    gerarModal.classList.add('opacity-0');
+                    document.getElementById('gerarModalContent').classList.add('scale-95');
+                    setTimeout(() => gerarModal.classList.add('hidden'), 250);
+                }
+                document.getElementById('noApiTitle').innerText = motorName + ' — Chave não configurada';
+                document.getElementById('noApiDesc').innerText = desc;
+                UI.toggleModal('noApiModal');
+            },
+
+            noApiGoTutorial() {
+                UI.toggleModal('noApiModal');
+                setTimeout(() => {
+                    UI.toggleModal('apiModal');
+                    setTimeout(() => UI.switchCfgTab('tutorial'), 320);
+                }, 280);
+            },
+
+            noApiGoManual() {
+                UI.toggleModal('noApiModal');
+                setTimeout(() => {
+                    UI.selecionarMotor('manual');
+                    UI.toggleModal('gerarModal');
+                }, 280);
+            },
+
+            switchCfgTab(tab) {
+                const tabs = ['config', 'tutorial'];
+                tabs.forEach(t => {
+                    const panel = document.getElementById('cfgTab' + t.charAt(0).toUpperCase() + t.slice(1));
+                    const btn = document.getElementById(t === 'config' ? 'cfgTabBtn' : 'tutTabBtn');
+                    const isActive = t === tab;
+                    if(panel) panel.classList.toggle('hidden', !isActive);
+                    if(btn) {
+                        btn.classList.toggle('cfg-tab-active', isActive);
+                        btn.classList.toggle('text-slate-500', !isActive);
+                        btn.classList.toggle('hover:bg-slate-100', !isActive);
+                    }
+                });
+            },
+
             showEasterEggToast(msg) {
                 // Remove existing toast if any
                 const old = document.getElementById('easterToast');
@@ -2336,8 +2478,8 @@
                 const periodo = document.getElementById('periodoAcademico').value;
                 const qtd = document.getElementById('qtdQuestoes').value;
 
-                if(motor === 'claude' && !claudeKey) return UI.showError("Falta a Chave API", "Insira a API Key do Claude nas configurações.");
-                if(motor === 'gemini' && !geminiKey) return UI.showError("Falta a Chave API", "Insira a API Key do Gemini nas configurações.");
+                if(motor === 'claude' && !claudeKey) return UI.showNoApiModal('Claude (Anthropic)', 'Para usar o motor Claude você precisa de uma API Key da Anthropic.');
+                if(motor === 'gemini' && !geminiKey) return UI.showNoApiModal('Gemini (Google)', 'Para usar o motor Gemini você precisa de uma API Key do Google AI Studio.');
                 if(!assuntos) return UI.showError("Atenção", "Preencha o campo obrigatório de Assuntos.");
 
                 const DOMINIO_ALTERNATIVO_PARAM = AppState.modoAlternativo ? `
